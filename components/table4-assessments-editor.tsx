@@ -7,52 +7,27 @@ import {
   updateAssessmentAction,
   type AssessmentFormState,
 } from "@/app/actions/table4";
-import type { HoursBreakdown } from "@/lib/table4-detail";
 import { Button } from "@/components/ui/button";
-import { BilingualLabel, LtpoInfoIcon } from "@/components/table4-bilingual-label";
+import { BilingualLabel } from "@/components/table4-bilingual-label";
 
 type Item = {
   id: string;
   orderIndex: number;
   nameMs: string;
   weightagePercent: string | null;
-  hours: HoursBreakdown;
+  // Physical/Online are single totals for assessments (the official
+  // template merges M:P and Q:T into one cell each here — unlike the
+  // weekly topics table, which has genuine separate L/T/P/O columns).
+  hours: { f2fPhysical?: { l: number }; f2fOnline?: { l: number }; independent?: number };
 };
 
 const initial: AssessmentFormState = {};
 
-function ltpo(b: { l: number; t: number; p: number; o: number }) {
-  return `L${b.l} T${b.t} P${b.p} O${b.o}`;
+function physicalTotal(h: Item["hours"]) {
+  return h.f2fPhysical?.l ?? 0;
 }
-
-function LtpoFields({
-  namePrefix,
-  defaults,
-}: {
-  namePrefix: string;
-  defaults?: { l: number; t: number; p: number; o: number };
-}) {
-  return (
-    <div className="grid grid-cols-4 gap-1">
-      {(["L", "T", "P", "O"] as const).map((label) => (
-        <input
-          key={label}
-          name={`${namePrefix}${label}`}
-          type="number"
-          step="0.5"
-          min="0"
-          defaultValue={defaults?.[label.toLowerCase() as "l" | "t" | "p" | "o"] ?? 0}
-          placeholder={label}
-          title={
-            { L: "Lecture/Kuliah", T: "Tutorial/Tutoran", P: "Practical/Amali", O: "Other/Lain-lain" }[
-              label
-            ]
-          }
-          className="w-full rounded-md border border-input bg-background px-1 py-1 text-xs text-foreground outline-none"
-        />
-      ))}
-    </div>
-  );
+function onlineTotal(h: Item["hours"]) {
+  return h.f2fOnline?.l ?? 0;
 }
 
 export function AssessmentsEditor({
@@ -89,8 +64,8 @@ export function AssessmentsEditor({
               <tr className="border-b border-border bg-muted/50 text-xs uppercase text-muted-foreground">
                 <th className="px-3 py-2.5">Nama</th>
                 <th className="px-3 py-2.5">Wajaran %</th>
-                <th className="px-3 py-2.5">F2F Fizikal (L/T/P/O)<LtpoInfoIcon /></th>
-                <th className="px-3 py-2.5">F2F Online (L/T/P/O)<LtpoInfoIcon /></th>
+                <th className="px-3 py-2.5">F2F Fizikal</th>
+                <th className="px-3 py-2.5">F2F Online</th>
                 <th className="px-3 py-2.5">Kendiri</th>
                 {!readOnly && <th className="px-3 py-2.5" />}
               </tr>
@@ -143,12 +118,24 @@ export function AssessmentsEditor({
           </div>
           <div className="grid grid-cols-3 items-end gap-3">
             <div>
-              <span className="inline-flex items-center"><BilingualLabel en="F2F Physical" ms="F2F Fizikal" /><LtpoInfoIcon /></span>
-              <LtpoFields namePrefix="assessmentPhysical" />
+              <BilingualLabel en="F2F Physical" ms="F2F Fizikal (jam)" />
+              <input
+                name="assessmentPhysical"
+                type="number"
+                step="0.5"
+                min="0"
+                className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
+              />
             </div>
             <div>
-              <span className="inline-flex items-center"><BilingualLabel en="F2F Online" ms="F2F Online" /><LtpoInfoIcon /></span>
-              <LtpoFields namePrefix="assessmentOnline" />
+              <BilingualLabel en="F2F Online" ms="F2F Online (jam)" />
+              <input
+                name="assessmentOnline"
+                type="number"
+                step="0.5"
+                min="0"
+                className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
+              />
             </div>
             <div>
               <BilingualLabel en="Independent Learning" ms="Pembelajaran Kendiri (jam)" />
@@ -157,7 +144,6 @@ export function AssessmentsEditor({
                 type="number"
                 step="0.5"
                 min="0"
-                defaultValue={0}
                 className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
               />
             </div>
@@ -230,12 +216,26 @@ function ItemRow({
             </div>
             <div className="grid grid-cols-3 items-end gap-2">
               <div>
-                <span className="inline-flex items-center"><BilingualLabel en="F2F Physical" ms="F2F Fizikal" /><LtpoInfoIcon /></span>
-                <LtpoFields namePrefix="assessmentPhysical" defaults={item.hours.f2fPhysical} />
+                <BilingualLabel en="F2F Physical" ms="F2F Fizikal (jam)" />
+                <input
+                  name="assessmentPhysical"
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  defaultValue={physicalTotal(item.hours)}
+                  className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground outline-none"
+                />
               </div>
               <div>
-                <span className="inline-flex items-center"><BilingualLabel en="F2F Online" ms="F2F Online" /><LtpoInfoIcon /></span>
-                <LtpoFields namePrefix="assessmentOnline" defaults={item.hours.f2fOnline} />
+                <BilingualLabel en="F2F Online" ms="F2F Online (jam)" />
+                <input
+                  name="assessmentOnline"
+                  type="number"
+                  step="0.5"
+                  min="0"
+                  defaultValue={onlineTotal(item.hours)}
+                  className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground outline-none"
+                />
               </div>
               <div>
                 <BilingualLabel en="Independent Learning" ms="Pembelajaran Kendiri (jam)" />
@@ -244,7 +244,7 @@ function ItemRow({
                   type="number"
                   step="0.5"
                   min="0"
-                  defaultValue={item.hours.independent}
+                  defaultValue={item.hours.independent ?? 0}
                   className="w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground outline-none"
                 />
               </div>
@@ -275,9 +275,9 @@ function ItemRow({
     <tr className="border-b border-border last:border-0">
       <td className="px-3 py-2.5 text-foreground">{item.nameMs}</td>
       <td className="px-3 py-2.5">{item.weightagePercent ?? "\u2014"}</td>
-      <td className="px-3 py-2.5 whitespace-nowrap">{ltpo(item.hours.f2fPhysical)}</td>
-      <td className="px-3 py-2.5 whitespace-nowrap">{ltpo(item.hours.f2fOnline)}</td>
-      <td className="px-3 py-2.5">{item.hours.independent}</td>
+      <td className="px-3 py-2.5">{physicalTotal(item.hours)}</td>
+      <td className="px-3 py-2.5">{onlineTotal(item.hours)}</td>
+      <td className="px-3 py-2.5">{item.hours.independent ?? 0}</td>
       {!readOnly && (
         <td className="px-3 py-2.5">
           <div className="flex items-center gap-1.5">

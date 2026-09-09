@@ -45,7 +45,18 @@ function parseHours(formData: FormData, prefix: string) {
     independent: num(formData, `${prefix}Independent`),
   };
 }
-
+// Assessment items only have a single Physical and single Online total
+// each (the official template merges those cells into one) — unlike
+// weekly topics, which have genuine separate L/T/P/O columns. The
+// single value is stored in the "l" slot so it still sums correctly
+// wherever the shared HoursBreakdown shape is totalled.
+function parseAssessmentHours(formData: FormData) {
+  return {
+    f2fPhysical: { l: num(formData, "assessmentPhysical"), t: 0, p: 0, o: 0 },
+    f2fOnline: { l: num(formData, "assessmentOnline"), t: 0, p: 0, o: 0 },
+    independent: num(formData, "assessmentIndependent"),
+  };
+}
 function revalidateVersion(courseId: string, versionId: string) {
   revalidatePath(`/courses/${courseId}/versions/${versionId}`);
 }
@@ -357,7 +368,7 @@ export async function addAssessmentAction(
       nameMs,
       nameEn: String(formData.get("nameEn") ?? "") || null,
       weightagePercent: weightageRaw ? weightageRaw : null,
-      hours: parseHours(formData, "assessment"),
+      hours: parseAssessmentHours(formData),
     },
   });
 
@@ -402,7 +413,7 @@ export async function updateAssessmentAction(
       nameMs,
       nameEn: String(formData.get("nameEn") ?? "") || null,
       weightagePercent: weightageRaw ? weightageRaw : null,
-      hours: parseHours(formData, "assessment"),
+      hours: parseAssessmentHours(formData),
     },
   });
 
