@@ -167,6 +167,7 @@ export default async function VersionDetailPage({
                 courseId={version.course.id}
                 readOnly={!isEditable}
                 topics={table4.topics}
+                clos={table4.clos}
               />
               <p className="mt-3 text-right text-xs font-semibold text-foreground">
                 SUB-TOTAL/SUB-JUMLAH SLT: {topicsSubtotal} jam

@@ -18,6 +18,7 @@ type Topic = {
   cloRef: string | null;
   hours: HoursBreakdown;
 };
+type CloOption = { orderIndex: number };
 
 const initial: TopicFormState = {};
 
@@ -42,7 +43,7 @@ function LtpoFields({
           type="number"
           step="0.5"
           min="0"
-          defaultValue={defaults?.[label.toLowerCase() as "l" | "t" | "p" | "o"] ?? 0}
+          defaultValue={defaults?.[label.toLowerCase() as "l" | "t" | "p" | "o"] ?? ""}
           placeholder={label}
           title={
             { L: "Lecture/Kuliah", T: "Tutorial/Tutoran", P: "Practical/Amali", O: "Other/Lain-lain" }[
@@ -56,16 +57,42 @@ function LtpoFields({
   );
 }
 
+// CLO reference dropdown — populated from the CLOs actually created in
+// this draft, so it's never possible to type a CLO number that doesn't
+// exist. Automatically reflects new CLOs as soon as they're added.
+function CloRefSelect({
+  clos,
+  defaultValue,
+  className,
+}: {
+  clos: CloOption[];
+  defaultValue?: string;
+  className?: string;
+}) {
+  return (
+    <select name="cloRef" defaultValue={defaultValue ?? ""} className={className}>
+      <option value="">&mdash; CLO &mdash;</option>
+      {clos.map((c) => (
+        <option key={c.orderIndex} value={`CLO${c.orderIndex}`}>
+          CLO{c.orderIndex}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 export function TopicsEditor({
   versionId,
   courseId,
   readOnly,
   topics,
+  clos,
 }: {
   versionId: string;
   courseId: string;
   readOnly: boolean;
   topics: Topic[];
+  clos: CloOption[];
 }) {
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [addState, addAction, isAdding] = useActionState(addTopicAction, initial);
@@ -103,6 +130,7 @@ export function TopicsEditor({
                   versionId={versionId}
                   courseId={courseId}
                   readOnly={readOnly}
+                  clos={clos}
                 />
               ))}
             </tbody>
@@ -132,9 +160,8 @@ export function TopicsEditor({
               placeholder="Nama topik"
               className="col-span-2 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
             />
-            <input
-              name="cloRef"
-              placeholder="CLO"
+            <CloRefSelect
+              clos={clos}
               className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
             />
           </div>
@@ -154,7 +181,6 @@ export function TopicsEditor({
                 type="number"
                 step="0.5"
                 min="0"
-                defaultValue={0}
                 className="w-full rounded-md border border-input bg-background px-2 py-1.5 text-sm text-foreground outline-none focus:border-primary"
               />
             </div>
@@ -181,11 +207,13 @@ function TopicRow({
   versionId,
   courseId,
   readOnly,
+  clos,
 }: {
   topic: Topic;
   versionId: string;
   courseId: string;
   readOnly: boolean;
+  clos: CloOption[];
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [state, action] = useActionState(removeTopicAction, initial);
@@ -217,10 +245,9 @@ function TopicRow({
                 defaultValue={topic.topicMs}
                 className="col-span-2 rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground outline-none"
               />
-              <input
-                name="cloRef"
+              <CloRefSelect
+                clos={clos}
                 defaultValue={topic.cloRef ?? ""}
-                placeholder="CLO"
                 className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground outline-none"
               />
             </div>
