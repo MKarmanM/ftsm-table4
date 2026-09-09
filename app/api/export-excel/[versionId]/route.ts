@@ -150,7 +150,7 @@ export async function GET(
 
   // ---- Assessment items (continuous + final) ----
   function writeAssessmentBlock(
-    items: typeof table4.assessments,
+    items: NonNullable<typeof table4>["assessments"],
     firstRow: number,
     maxRows: number
   ) {

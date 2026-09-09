@@ -54,7 +54,11 @@ function assessmentTable(
   items: {
     nameMs: string;
     weightagePercent: string | null;
-    hours: { f2fPhysical?: number; f2fOnline?: number; independent?: number };
+    hours: {
+      f2fPhysical: { l: number; t: number; p: number; o: number };
+      f2fOnline: { l: number; t: number; p: number; o: number };
+      independent: number;
+    };
   }[]
 ) {
   if (items.length === 0) {
@@ -314,7 +318,7 @@ export async function GET(
   const buffer = await Packer.toBuffer(doc);
   const filename = `Table4_${table4.course.code}_v${table4.versionNo}.docx`;
 
-  return new NextResponse(buffer, {
+  return new NextResponse(buffer as unknown as BodyInit, {
     status: 200,
     headers: {
       "Content-Type":
