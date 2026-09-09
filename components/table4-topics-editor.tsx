@@ -9,12 +9,13 @@ import {
 } from "@/app/actions/table4";
 import type { HoursBreakdown } from "@/lib/table4-detail";
 import { Button } from "@/components/ui/button";
-import { BilingualLabel, LtpoInfoIcon } from "@/components/table4-bilingual-label";
+import { BilingualLabel, BilingualTextarea, LtpoInfoIcon } from "@/components/table4-bilingual-label";
 
 type Topic = {
   id: string;
   orderIndex: number;
   topicMs: string;
+  topicEn: string | null;
   cloRef: string | null;
   hours: HoursBreakdown;
 };
@@ -154,16 +155,23 @@ export function TopicsEditor({
           <input type="hidden" name="courseId" value={courseId} />
           <p className="text-sm font-semibold text-foreground">Tambah Topik</p>
           <div className="grid grid-cols-3 gap-3">
-            <input
-              name="topicMs"
-              required
-              placeholder="Nama topik"
-              className="col-span-2 rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-            />
-            <CloRefSelect
-              clos={clos}
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-            />
+            <div className="col-span-2">
+              <BilingualTextarea
+                labelEn="Course Content Outline and Subtopics"
+                labelMs="Kandungan Kursus dan Subtopik"
+                nameBm="topicMs"
+                nameEn="topicEn"
+                required
+                rows={2}
+              />
+            </div>
+            <div>
+              <BilingualLabel en="CLO" ms="CLO" />
+              <CloRefSelect
+                clos={clos}
+                className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
+              />
+            </div>
           </div>
           <div className="grid grid-cols-3 items-end gap-3">
             <div>
@@ -239,17 +247,26 @@ function TopicRow({
             <input type="hidden" name="courseId" value={courseId} />
             <input type="hidden" name="topicId" value={topic.id} />
             <div className="grid grid-cols-3 gap-2">
-              <input
-                name="topicMs"
-                required
-                defaultValue={topic.topicMs}
-                className="col-span-2 rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground outline-none"
-              />
-              <CloRefSelect
-                clos={clos}
-                defaultValue={topic.cloRef ?? ""}
-                className="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground outline-none"
-              />
+              <div className="col-span-2">
+                <BilingualTextarea
+                  labelEn="Course Content Outline and Subtopics"
+                  labelMs="Kandungan Kursus dan Subtopik"
+                  nameBm="topicMs"
+                  nameEn="topicEn"
+                  defaultValueBm={topic.topicMs}
+                  defaultValueEn={topic.topicEn ?? ""}
+                  required
+                  rows={2}
+                />
+              </div>
+              <div>
+                <BilingualLabel en="CLO" ms="CLO" />
+                <CloRefSelect
+                  clos={clos}
+                  defaultValue={topic.cloRef ?? ""}
+                  className="mt-1.5 w-full rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground outline-none"
+                />
+              </div>
             </div>
             <div className="grid grid-cols-3 items-end gap-2">
               <div>
@@ -297,7 +314,12 @@ function TopicRow({
   return (
     <tr className="border-b border-border last:border-0">
       <td className="px-3 py-2.5">{topic.orderIndex}</td>
-      <td className="px-3 py-2.5 text-foreground">{topic.topicMs}</td>
+      <td className="px-3 py-2.5 text-foreground">
+        <div>{topic.topicMs}</div>
+        {topic.topicEn && (
+          <div className="italic text-primary">{topic.topicEn}</div>
+        )}
+      </td>
       <td className="px-3 py-2.5 text-muted-foreground">{topic.cloRef ?? "\u2014"}</td>
       <td className="px-3 py-2.5 whitespace-nowrap">{ltpo(topic.hours.f2fPhysical)}</td>
       <td className="px-3 py-2.5 whitespace-nowrap">{ltpo(topic.hours.f2fOnline)}</td>
