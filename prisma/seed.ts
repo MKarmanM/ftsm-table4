@@ -197,8 +197,7 @@ async function main() {
           ],
           aiElement: false,
           isIndustrialTraining50Elt: false,
-          facultyApprovalDate: new Date("2022-07-22"),
-          senateApprovalDate: new Date("2022-07-22"),
+         
         },
       });
 

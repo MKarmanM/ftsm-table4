@@ -155,7 +155,7 @@ function CloRow({
   readOnly: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  const [showPloList, setShowPloList] = useState(false);
+  
   const [removeState, removeAction] = useActionState(removeCloAction, initialAdd);
   const [toggleState, toggleAction] = useActionState(
     toggleCloPloMappingAction,
@@ -335,27 +335,10 @@ function CloRow({
                 </form>
               );
             })}
-            <button
-              type="button"
-              onClick={() => setShowPloList((v) => !v)}
-              className="text-xs font-medium text-primary hover:underline"
-            >
-              {showPloList ? "Sorok PLO" : "Lihat PLO"}
-            </button>
+            
           </div>
 
-          {showPloList && (
-            <ul className="mt-2 space-y-1 rounded-md border border-border bg-muted/20 p-3 text-xs">
-              {plos.map((plo) => (
-                <li key={plo.id} className="text-muted-foreground">
-                  <span className="font-medium text-foreground">
-                    PLO{plo.orderNumber}:
-                  </span>{" "}
-                  {plo.textMs}
-                </li>
-              ))}
-            </ul>
-          )}
+      
         </>
       )}
       {(removeState?.error || toggleState?.error) && (
