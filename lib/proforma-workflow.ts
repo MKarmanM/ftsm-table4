@@ -113,6 +113,7 @@ export async function applyReviewAction(params: {
     // status change, and must never make this action report failure
     // when the status change itself succeeded. Wrapped in its own
     // try/catch so nothing here can propagate to the outer catch below.
+    void (async () => {
     try {
       const [course, actor] = await Promise.all([
         prisma.course.findUniqueOrThrow({
@@ -134,6 +135,7 @@ export async function applyReviewAction(params: {
     } catch (notifyErr) {
       console.error("Gagal menghantar notifikasi emel:", notifyErr);
     }
+    })();
 
     return updated;
   } catch (err) {
