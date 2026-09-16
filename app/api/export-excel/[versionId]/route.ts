@@ -6,6 +6,7 @@ import { getTable4Detail } from "@/lib/table4-detail";
 import { TABLE4_CELLS, CLASSIFICATION_TEXT, MQF_CLUSTER_GRID_ROWS } from "@/lib/table4-excel-map";
 import { taxonomyCode } from "@/lib/taxonomy-data";
 import { deriveMqfClusters } from "@/lib/mqf-legend";
+import { canViewDraft } from "@/lib/permissions";
 
 const TEMPLATE_PATH = path.join(process.cwd(), "resources", "table4-template.xlsx");
 
@@ -32,6 +33,14 @@ export async function GET(
   const { versionId } = await params;
   const table4 = await getTable4Detail(versionId);
   if (!table4) {
+    return NextResponse.json({ error: "Versi tidak dijumpai." }, { status: 404 });
+  }
+  if (
+    !canViewDraft(currentUser, {
+      id: table4.course.id,
+      programmeId: table4.course.programmeId,
+    })
+  ) {
     return NextResponse.json({ error: "Versi tidak dijumpai." }, { status: 404 });
   }
 

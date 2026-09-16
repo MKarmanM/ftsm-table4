@@ -1,6 +1,6 @@
 import { getCoursesOverview, STATUS_LABEL } from "@/lib/courses";
 import { getCurrentUser } from "@/lib/auth";
-import { canManageDraft } from "@/lib/permissions";
+import { canManageDraft, canViewDraft } from "@/lib/permissions";
 import { getPendingActionsForUser, getStatusCounts } from "@/lib/dashboard";
 import { StatusBadge, STATUS_CARD_STYLE } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
@@ -185,7 +185,10 @@ export default async function CoursesPage({
 
                       return (
                         <div className="flex items-center justify-end gap-2">
-                          {course.latestVersion && (
+                          {course.latestVersion && currentUser && canViewDraft(currentUser, {
+                            id: course.id,
+                            programmeId: course.programme.id,
+                          }) && (
                             <Link
                               href={`/courses/${course.id}`}
                               className={buttonVariants({
@@ -196,7 +199,10 @@ export default async function CoursesPage({
                               Sejarah
                             </Link>
                           )}
-                          {course.latestVersion && (
+                          {course.latestVersion && currentUser && canViewDraft(currentUser, {
+                            id: course.id,
+                            programmeId: course.programme.id,
+                          }) && (
                             <Link
                               href={`/courses/${course.id}/versions/${course.latestVersion.id}`}
                               className={buttonVariants({

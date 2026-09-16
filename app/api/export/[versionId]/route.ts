@@ -16,14 +16,8 @@ import { getTable4Detail, computeSltSummary } from "@/lib/table4-detail";
 import { STATUS_LABEL } from "@/lib/courses";
 import { taxonomyCode } from "@/lib/taxonomy-data";
 import { deriveMqfClusters } from "@/lib/mqf-legend";
-
-const CLASSIFICATION_LABEL: Record<string, string> = {
-  WU_CITRA_WAJIB: "Wajib Universiti / Citra Wajib",
-  WU_CITRA_RENTAS: "Wajib Universiti / Citra Rentas",
-  TERAS: "Teras",
-  ELEKTIF: "Elektif",
-  AUDIT: "Audit",
-};
+import { canViewDraft } from "@/lib/permissions";
+import { CLASSIFICATION_LABEL } from "@/lib/table4-labels";
 
 function metaRow(label: string, value: string) {
   return new TableRow({
@@ -104,6 +98,14 @@ export async function GET(
   const { versionId } = await params;
   const table4 = await getTable4Detail(versionId);
   if (!table4) {
+    return NextResponse.json({ error: "Versi tidak dijumpai." }, { status: 404 });
+  }
+  if (
+    !canViewDraft(currentUser, {
+      id: table4.course.id,
+      programmeId: table4.course.programmeId,
+    })
+  ) {
     return NextResponse.json({ error: "Versi tidak dijumpai." }, { status: 404 });
   }
 

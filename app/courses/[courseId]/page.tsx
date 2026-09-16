@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCourseVersionHistory } from "@/lib/course-history";
 import { StatusBadge } from "@/components/status-badge";
+import { getCurrentUser } from "@/lib/auth";
+import { canViewDraft } from "@/lib/permissions";
 
 export const dynamic = "force-dynamic";
 
@@ -11,9 +13,19 @@ export default async function CourseHistoryPage({
   params: Promise<{ courseId: string }>;
 }) {
   const { courseId } = await params;
-  const data = await getCourseVersionHistory(courseId);
+  const [data, currentUser] = await Promise.all([
+    getCourseVersionHistory(courseId),
+    getCurrentUser(),
+  ]);
 
-  if (!data) {
+  if (
+    !data ||
+    !currentUser ||
+    !canViewDraft(currentUser, {
+      id: data.course.id,
+      programmeId: data.course.programme.id,
+    })
+  ) {
     notFound();
   }
 

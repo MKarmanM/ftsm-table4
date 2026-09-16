@@ -10,20 +10,23 @@ type Attempt = { count: number; firstAttemptAt: number };
 const attempts = new Map<string, Attempt>();
 
 const WINDOW_MS = 15 * 60 * 1000; // 15 minutes
-const MAX_ATTEMPTS = 5;
+const DEFAULT_MAX_ATTEMPTS = 5;
 
 function isExpired(entry: Attempt): boolean {
   return Date.now() - entry.firstAttemptAt > WINDOW_MS;
 }
 
-export function isRateLimited(key: string): boolean {
+export function isRateLimited(
+  key: string,
+  maxAttempts = DEFAULT_MAX_ATTEMPTS
+): boolean {
   const entry = attempts.get(key);
   if (!entry) return false;
   if (isExpired(entry)) {
     attempts.delete(key);
     return false;
   }
-  return entry.count >= MAX_ATTEMPTS;
+  return entry.count >= maxAttempts;
 }
 
 export function recordFailedAttempt(key: string): void {

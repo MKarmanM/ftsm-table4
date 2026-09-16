@@ -68,8 +68,8 @@ export function AddCourseForm({
         placeholder="Contoh: Structured Programming"
       />
       <p className="text-xs text-muted-foreground">
-        Nilai kredit akan dikira automatik daripada jam SLT bila draf Table
-        4 diisi — tidak perlu ditetapkan semasa tambah kursus.
+        Nilai kredit akan dikira secara automatik daripada jumlah SLT apabila
+        Table 4 diterbitkan.
       </p>
 
       <div className="flex items-center gap-3 pt-1">

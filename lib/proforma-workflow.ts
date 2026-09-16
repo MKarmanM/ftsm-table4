@@ -3,6 +3,8 @@ import { ProformaStatus, type ReviewActionType } from "./generated/prisma/enums"
 import { prisma } from "./prisma";
 import { VALID_TRANSITIONS, ACTION_TO_STATUS } from "./workflow-constants";
 import { notifyReviewAction } from "./notifications";
+import { after } from "next/server";
+import { computeSltSummary, normalizeHours } from "./table4-detail";
 
 // Server-only: this file imports "./prisma" (pg driver, Node-only). Never
 // import this from a Client Component — import lib/workflow-constants.ts
@@ -24,6 +26,10 @@ export async function applyReviewAction(params: {
     const updated = await prisma.$transaction(async (tx) => {
       const version = await tx.proformaVersion.findUniqueOrThrow({
         where: { id: versionId },
+        include: {
+          topics: { select: { hours: true } },
+          assessments: { select: { hours: true } },
+        },
       });
 
       const allowed = VALID_TRANSITIONS[version.status];
@@ -58,6 +64,19 @@ export async function applyReviewAction(params: {
       // actually gets violated in the normal flow — the old row moves
       // out of the way first.
       if (nextStatus === ProformaStatus.PUBLISHED) {
+        const slt = computeSltSummary(
+          version.topics.map((topic) => ({ hours: normalizeHours(topic.hours) })),
+          version.assessments.map((assessment) => ({
+            hours: normalizeHours(assessment.hours),
+          })),
+          version.isIndustrialTraining50Elt
+        );
+        if (slt.suggestedCreditHours <= 0) {
+          throw new WorkflowError(
+            "Jumlah SLT belum mencukupi untuk menghasilkan nilai kredit. Lengkapkan SLT sebelum menerbitkan."
+          );
+        }
+
         const currentlyPublished = await tx.proformaVersion.findFirst({
           where: {
             courseId: version.courseId,
@@ -83,6 +102,11 @@ export async function applyReviewAction(params: {
             },
           });
         }
+
+        await tx.course.update({
+          where: { id: version.courseId },
+          data: { creditHours: slt.suggestedCreditHours },
+        });
       }
 
       const updated = await tx.proformaVersion.update({
@@ -108,34 +132,32 @@ export async function applyReviewAction(params: {
       return updated;
     });
 
-    // Fire the notification email after the transaction has committed —
-    // a failed/slow email must never roll back or block the actual
-    // status change, and must never make this action report failure
-    // when the status change itself succeeded. Wrapped in its own
-    // try/catch so nothing here can propagate to the outer catch below.
-    void (async () => {
-    try {
-      const [course, actor] = await Promise.all([
-        prisma.course.findUniqueOrThrow({
-          where: { id: updated.courseId },
-          select: { id: true, code: true, nameMs: true, programmeId: true },
-        }),
-        prisma.user.findUniqueOrThrow({
-          where: { id: actorId },
-          select: { name: true },
-        }),
-      ]);
+    // Schedule notification work in Next.js' request lifecycle so a
+    // serverless runtime does not freeze the function before it finishes.
+    // Email failure remains best-effort and never rolls back the workflow.
+    after(async () => {
+      try {
+        const [course, actor] = await Promise.all([
+          prisma.course.findUniqueOrThrow({
+            where: { id: updated.courseId },
+            select: { id: true, code: true, nameMs: true, programmeId: true },
+          }),
+          prisma.user.findUniqueOrThrow({
+            where: { id: actorId },
+            select: { name: true },
+          }),
+        ]);
 
-      await notifyReviewAction({
-        type,
-        actorName: actor.name,
-        note,
-        version: { id: updated.id, versionNo: updated.versionNo, course },
-      });
-    } catch (notifyErr) {
-      console.error("Gagal menghantar notifikasi emel:", notifyErr);
-    }
-    })();
+        await notifyReviewAction({
+          type,
+          actorName: actor.name,
+          note,
+          version: { id: updated.id, versionNo: updated.versionNo, course },
+        });
+      } catch (notifyErr) {
+        console.error("Gagal menghantar notifikasi emel:", notifyErr);
+      }
+    });
 
     return updated;
   } catch (err) {

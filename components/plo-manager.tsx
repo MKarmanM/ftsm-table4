@@ -95,13 +95,13 @@ function PloRow({ plo }: { plo: Plo }) {
     initialRemoveState
   );
   const [updateState, updateAction, isUpdating] = useActionState(
-    updatePloAction,
+    async (previousState: UpdatePloState, formData: FormData) => {
+      const result = await updatePloAction(previousState, formData);
+      if (result.success) setIsEditing(false);
+      return result;
+    },
     initialUpdateState
   );
-
-  useEffect(() => {
-    if (updateState?.success) setIsEditing(false);
-  }, [updateState?.success]);
 
   if (isEditing) {
     return (

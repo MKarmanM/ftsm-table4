@@ -5,26 +5,32 @@ import { STATUS_LABEL } from "@/lib/courses";
 import { taxonomyCode } from "@/lib/taxonomy-data";
 import { deriveMqfClusters } from "@/lib/mqf-legend";
 import { PrintButton } from "@/components/print-button";
+import { getCurrentUser } from "@/lib/auth";
+import { canViewDraft } from "@/lib/permissions";
+import { CLASSIFICATION_LABEL } from "@/lib/table4-labels";
 
 export const dynamic = "force-dynamic";
-
-const CLASSIFICATION_LABEL: Record<string, string> = {
-  WU_CITRA_WAJIB: "Wajib Universiti / Citra Wajib",
-  WU_CITRA_RENTAS: "Wajib Universiti / Citra Rentas",
-  TERAS: "Teras",
-  ELEKTIF: "Elektif",
-  AUDIT: "Audit",
-};
 
 export default async function PrintVersionPage({
   params,
 }: {
   params: Promise<{ courseId: string; versionId: string }>;
 }) {
-  const { versionId } = await params;
-  const table4 = await getTable4Detail(versionId);
+  const { courseId, versionId } = await params;
+  const [table4, currentUser] = await Promise.all([
+    getTable4Detail(versionId),
+    getCurrentUser(),
+  ]);
 
-  if (!table4) {
+  if (
+    !table4 ||
+    !currentUser ||
+    table4.course.id !== courseId ||
+    !canViewDraft(currentUser, {
+      id: table4.course.id,
+      programmeId: table4.course.programmeId,
+    })
+  ) {
     notFound();
   }
 

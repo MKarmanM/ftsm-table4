@@ -90,10 +90,7 @@ export async function createCourseAction(
         code,
         nameMs,
         nameEn: nameEn || null,
-        // Credit hours is no longer collected at creation — it's
-        // auto-computed from a draft's SLT total once Table 4 content
-        // is filled in (see lib/table4-detail.ts). Starts at 0 and can
-        // be corrected manually via Edit if ever needed.
+        // Nilai rasmi dikira daripada jumlah SLT apabila Table 4 diterbitkan.
         creditHours: 0,
         programmeId,
       },

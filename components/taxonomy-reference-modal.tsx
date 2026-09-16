@@ -12,14 +12,6 @@ const TAXONOMY_IMAGES: Record<TaxonomyDomainKey, { src: string; alt: string }> =
 
 export function TaxonomyReferenceLink({ domain }: { domain: TaxonomyDomainKey | "" }) {
   const [open, setOpen] = useState(false);
-  // Portals need a browser document to attach to — guard against
-  // running during server rendering.
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   useEffect(() => {
     if (!open) return;
     function onKeyDown(e: KeyboardEvent) {
@@ -47,7 +39,6 @@ export function TaxonomyReferenceLink({ domain }: { domain: TaxonomyDomainKey | 
       </button>
 
       {open &&
-        mounted &&
         createPortal(
           <div
             role="dialog"

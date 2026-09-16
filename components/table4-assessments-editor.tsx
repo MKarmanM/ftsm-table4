@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useEffect, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import {
   addAssessmentAction,
   removeAssessmentAction,
@@ -44,14 +44,18 @@ export function AssessmentsEditor({
   items: Item[];
 }) {
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [addState, addAction, isAdding] = useActionState(addAssessmentAction, initial);
   const formRef = useRef<HTMLFormElement>(null);
-  useEffect(() => {
-    if (!addState?.error) {
-      formRef.current?.reset();
-      setIsAddOpen(false);
-    }
-  }, [addState]);
+  const [addState, addAction, isAdding] = useActionState(
+    async (previousState: AssessmentFormState, formData: FormData) => {
+      const result = await addAssessmentAction(previousState, formData);
+      if (!result.error) {
+        formRef.current?.reset();
+        setIsAddOpen(false);
+      }
+      return result;
+    },
+    initial
+  );
 
   return (
     <div className="space-y-3">
@@ -179,14 +183,13 @@ function ItemRow({
   const [isEditing, setIsEditing] = useState(false);
   const [state, action] = useActionState(removeAssessmentAction, initial);
   const [updateState, updateAction, isUpdating] = useActionState(
-    updateAssessmentAction,
+    async (previousState: AssessmentFormState, formData: FormData) => {
+      const result = await updateAssessmentAction(previousState, formData);
+      if (!result.error) setIsEditing(false);
+      return result;
+    },
     initial
   );
-
-  useEffect(() => {
-    if (!updateState?.error && isEditing) setIsEditing(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [updateState]);
 
   if (isEditing) {
     return (

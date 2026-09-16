@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useEffect, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import {
   addTopicAction,
   removeTopicAction,
@@ -96,14 +96,18 @@ export function TopicsEditor({
   clos: CloOption[];
 }) {
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [addState, addAction, isAdding] = useActionState(addTopicAction, initial);
   const formRef = useRef<HTMLFormElement>(null);
-  useEffect(() => {
-    if (!addState?.error) {
-      formRef.current?.reset();
-      setIsAddOpen(false);
-    }
-  }, [addState]);
+  const [addState, addAction, isAdding] = useActionState(
+    async (previousState: TopicFormState, formData: FormData) => {
+      const result = await addTopicAction(previousState, formData);
+      if (!result.error) {
+        formRef.current?.reset();
+        setIsAddOpen(false);
+      }
+      return result;
+    },
+    initial
+  );
 
   return (
     <div className="space-y-3">
@@ -226,14 +230,13 @@ function TopicRow({
   const [isEditing, setIsEditing] = useState(false);
   const [state, action] = useActionState(removeTopicAction, initial);
   const [updateState, updateAction, isUpdating] = useActionState(
-    updateTopicAction,
+    async (previousState: TopicFormState, formData: FormData) => {
+      const result = await updateTopicAction(previousState, formData);
+      if (!result.error) setIsEditing(false);
+      return result;
+    },
     initial
   );
-
-  useEffect(() => {
-    if (!updateState?.error && isEditing) setIsEditing(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [updateState]);
 
   if (isEditing) {
     return (

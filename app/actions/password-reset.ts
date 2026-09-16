@@ -5,7 +5,11 @@ import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageUsers } from "@/lib/permissions";
-import { signResetToken, verifyResetToken } from "@/lib/reset-token";
+import {
+  isResetTokenCurrent,
+  signResetToken,
+  verifyResetToken,
+} from "@/lib/reset-token";
 import { sendEmail } from "@/lib/email";
 import { isRateLimited, recordFailedAttempt, clearAttempts } from "@/lib/rate-limit";
 
@@ -43,7 +47,7 @@ export async function requestPasswordResetAction(
   // — telling the requester "no such email" would let anyone check which
   // addresses are registered.
   if (user && user.isActive) {
-    const token = await signResetToken(user.id);
+    const token = await signResetToken(user.id, user.passwordHash);
     const link = `${APP_URL}/reset-password?token=${token}`;
     await sendEmail({
       to: user.email,
@@ -86,15 +90,37 @@ export async function resetPasswordAction(
     return { error: "Kata laluan dan pengesahan tidak sepadan." };
   }
 
-  const userId = await verifyResetToken(token);
-  if (!userId) {
+  const resetToken = await verifyResetToken(token);
+  if (!resetToken) {
     return {
       error: "Pautan set semula tidak sah atau telah luput. Sila mohon pautan baharu.",
     };
   }
 
+  const user = await prisma.user.findUnique({
+    where: { id: resetToken.userId },
+    select: { email: true, passwordHash: true, isActive: true },
+  });
+  if (
+    !user?.isActive ||
+    !(await isResetTokenCurrent(resetToken, user.passwordHash))
+  ) {
+    return {
+      error: "Pautan set semula tidak sah atau telah digunakan. Sila mohon pautan baharu.",
+    };
+  }
+
   const passwordHash = await bcrypt.hash(password, 10);
-  await prisma.user.update({ where: { id: userId }, data: { passwordHash } });
+  const update = await prisma.user.updateMany({
+    where: { id: resetToken.userId, passwordHash: user.passwordHash },
+    data: { passwordHash },
+  });
+  if (update.count !== 1) {
+    return {
+      error: "Pautan set semula telah digunakan. Sila mohon pautan baharu.",
+    };
+  }
+  clearAttempts(`reset:${user.email}`);
 
   redirect("/login?reset=success");
 }

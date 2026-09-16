@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useEffect, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import { assignRoleAction, type AssignRoleState } from "@/app/actions/user-admin";
 import { Button } from "@/components/ui/button";
 
@@ -21,22 +21,22 @@ export function AssignRoleForm({
   users: { id: string; name: string; email: string }[];
   programmes: { id: string; code: string; nameMs: string }[];
 }) {
-  const [state, formAction, isPending] = useActionState(
-    assignRoleAction,
-    initialState
-  );
   const formRef = useRef<HTMLFormElement>(null);
   const [selectedRole, setSelectedRole] = useState(ROLE_OPTIONS[0].value);
+  const [state, formAction, isPending] = useActionState(
+    async (previousState: AssignRoleState, formData: FormData) => {
+      const result = await assignRoleAction(previousState, formData);
+      if (result.success) {
+        formRef.current?.reset();
+        setSelectedRole(ROLE_OPTIONS[0].value);
+      }
+      return result;
+    },
+    initialState
+  );
   const needsProgramme = ROLE_OPTIONS.find(
     (r) => r.value === selectedRole
   )?.needsProgramme;
-
-  useEffect(() => {
-    if (state?.success) {
-      formRef.current?.reset();
-      setSelectedRole(ROLE_OPTIONS[0].value);
-    }
-  }, [state?.success]);
 
   if (users.length === 0) {
     return (

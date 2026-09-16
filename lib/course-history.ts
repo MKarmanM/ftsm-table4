@@ -18,7 +18,7 @@ export async function getCourseVersionHistory(courseId: string) {
       id: course.id,
       code: course.code,
       nameMs: course.nameMs,
-      programme: { code: course.programme.code },
+      programme: { id: course.programme.id, code: course.programme.code },
     },
     versions: versions.map((v) => ({
       id: v.id,

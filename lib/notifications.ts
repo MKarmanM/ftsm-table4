@@ -4,6 +4,20 @@ import type { ReviewActionType } from "./generated/prisma/enums";
 
 const APP_URL = process.env.APP_URL ?? "http://localhost:3000";
 
+function escapeHtml(value: string): string {
+  return value.replace(
+    /[&<>'"]/g,
+    (character) =>
+      ({
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        "'": "&#39;",
+        '"': "&quot;",
+      })[character] ?? character
+  );
+}
+
 async function getProgrammeCoordinatorEmails(
   programmeId: string
 ): Promise<string[]> {
@@ -54,7 +68,11 @@ export async function notifyReviewAction(params: {
 }) {
   const { type, actorName, note, version } = params;
   const link = `${APP_URL}/courses/${version.course.id}/versions/${version.id}`;
-  const courseLabel = `${version.course.code} — ${version.course.nameMs} (Versi ${version.versionNo})`;
+  const safeActorName = escapeHtml(actorName);
+  const safeNote = note ? escapeHtml(note) : undefined;
+  const courseLabel = escapeHtml(
+    `${version.course.code} — ${version.course.nameMs} (Versi ${version.versionNo})`
+  );
 
   let recipients: string[] = [];
   let subject = "";
@@ -65,7 +83,7 @@ export async function notifyReviewAction(params: {
       recipients = await getProgrammeCoordinatorEmails(version.course.programmeId);
       subject = `Draf Table 4 menunggu semakan — ${version.course.code}`;
       bodyHtml = `
-        <p><strong>${actorName}</strong> telah menghantar draf Table 4 untuk semakan.</p>
+        <p><strong>${safeActorName}</strong> telah menghantar draf Table 4 untuk semakan.</p>
         <p><strong>Kursus:</strong> ${courseLabel}</p>
         <p><a href="${link}">Buka draf untuk semak</a></p>
       `;
@@ -75,9 +93,9 @@ export async function notifyReviewAction(params: {
       recipients = await getCourseCoordinatorEmails(version.course.id);
       subject = `Table 4 memerlukan pembetulan — ${version.course.code}`;
       bodyHtml = `
-        <p><strong>${actorName}</strong> meminta pembetulan pada draf Table 4.</p>
+        <p><strong>${safeActorName}</strong> meminta pembetulan pada draf Table 4.</p>
         <p><strong>Kursus:</strong> ${courseLabel}</p>
-        ${note ? `<p><strong>Catatan:</strong> ${note}</p>` : ""}
+        ${safeNote ? `<p><strong>Catatan:</strong> ${safeNote}</p>` : ""}
         <p><a href="${link}">Buka draf untuk semak catatan</a></p>
       `;
       break;
@@ -86,7 +104,7 @@ export async function notifyReviewAction(params: {
       recipients = await getFacultyOfficerEmails();
       subject = `Table 4 telah diluluskan, sedia untuk diterbitkan — ${version.course.code}`;
       bodyHtml = `
-        <p><strong>${actorName}</strong> telah meluluskan draf Table 4 ini.</p>
+        <p><strong>${safeActorName}</strong> telah meluluskan draf Table 4 ini.</p>
         <p><strong>Kursus:</strong> ${courseLabel}</p>
         <p><a href="${link}">Buka untuk terbitkan</a></p>
       `;
@@ -96,7 +114,7 @@ export async function notifyReviewAction(params: {
       recipients = await getCourseCoordinatorEmails(version.course.id);
       subject = `Table 4 telah diterbitkan — ${version.course.code}`;
       bodyHtml = `
-        <p>Draf Table 4 anda telah diterbitkan secara rasmi oleh <strong>${actorName}</strong>.</p>
+        <p>Draf Table 4 anda telah diterbitkan secara rasmi oleh <strong>${safeActorName}</strong>.</p>
         <p><strong>Kursus:</strong> ${courseLabel}</p>
         <p><a href="${link}">Lihat versi yang diterbitkan</a></p>
       `;

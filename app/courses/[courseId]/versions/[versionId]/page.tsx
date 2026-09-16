@@ -4,7 +4,7 @@ import { getVersionDetail } from "@/lib/proforma-detail";
 import { getTable4Detail, computeSltSummary, computeGroupTotal } from "@/lib/table4-detail";
 import { getAllowedActions } from "@/lib/workflow-constants";
 import { getCurrentUser } from "@/lib/auth";
-import { canManageDraft, filterActionsByPermission } from "@/lib/permissions";
+import { canManageDraft, canViewDraft, filterActionsByPermission } from "@/lib/permissions";
 import { getAuditEventsForVersion } from "@/lib/audit";
 import { StatusBadge } from "@/components/status-badge";
 import { ReviewActionButtons } from "@/components/review-action-buttons";
@@ -31,7 +31,7 @@ export default async function VersionDetailPage({
 }: {
   params: Promise<{ courseId: string; versionId: string }>;
 }) {
-  const { versionId } = await params;
+  const { courseId, versionId } = await params;
   const [version, currentUser, auditEvents, table4] = await Promise.all([
     getVersionDetail(versionId),
     getCurrentUser(),
@@ -47,6 +47,10 @@ export default async function VersionDetailPage({
     id: version.course.id,
     programmeId: version.course.programme.id,
   };
+
+  if (version.course.id !== courseId || !canViewDraft(currentUser, courseContext)) {
+    notFound();
+  }
 
   const statusAllowedActions = getAllowedActions(version.status);
   const permittedActions = filterActionsByPermission(

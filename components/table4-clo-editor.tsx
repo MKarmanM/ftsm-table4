@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useEffect, useState } from "react";
+import { useActionState, useRef, useState } from "react";
 import {
   addCloAction,
   removeCloAction,
@@ -48,14 +48,18 @@ export function CloEditor({
   plos: Plo[];
 }) {
   const [isAddOpen, setIsAddOpen] = useState(false);
-  const [addState, addAction, isAdding] = useActionState(addCloAction, initialAdd);
   const formRef = useRef<HTMLFormElement>(null);
-  useEffect(() => {
-    if (!addState?.error) {
-      formRef.current?.reset();
-      if (!addState?.error && formRef.current) setIsAddOpen(false);
-    }
-  }, [addState]);
+  const [addState, addAction, isAdding] = useActionState(
+    async (previousState: CloFormState, formData: FormData) => {
+      const result = await addCloAction(previousState, formData);
+      if (!result.error) {
+        formRef.current?.reset();
+        setIsAddOpen(false);
+      }
+      return result;
+    },
+    initialAdd
+  );
 
   return (
     <div className="space-y-4">
@@ -162,14 +166,13 @@ function CloRow({
     initialAdd
   );
   const [updateState, updateAction, isUpdating] = useActionState(
-    updateCloAction,
+    async (previousState: CloFormState, formData: FormData) => {
+      const result = await updateCloAction(previousState, formData);
+      if (!result.error) setIsEditing(false);
+      return result;
+    },
     initialUpdate
   );
-
-  useEffect(() => {
-    if (!updateState?.error && isEditing) setIsEditing(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [updateState]);
 
   const cloTextSplit = splitBilingual(clo.text);
 

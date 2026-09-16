@@ -1,7 +1,12 @@
 import { prisma } from "./prisma";
 import { getAllowedActions } from "./workflow-constants";
-import { filterActionsByPermission, type PermissionUser } from "./permissions";
-import { ProformaStatus } from "./generated/prisma/enums";
+import {
+  filterActionsByPermission,
+  isAdmin,
+  isFacultyOfficer,
+  type PermissionUser,
+} from "./permissions";
+import { ProformaStatus, Role } from "./generated/prisma/enums";
 
 // Only "in-flight" statuses can ever need someone's action next; PUBLISHED/
 // SUPERSEDED/ARCHIVED are terminal for that version (a new draft might
@@ -14,8 +19,28 @@ const ACTIONABLE_STATUSES: ProformaStatus[] = [
 ];
 
 export async function getPendingActionsForUser(user: PermissionUser) {
+  const canSeeFacultyWide = isAdmin(user) || isFacultyOfficer(user);
+  const programmeIds = user.roles
+    .filter((role) => role.role === Role.PROGRAMME_COORDINATOR && role.programmeId)
+    .map((role) => role.programmeId as string);
+  const courseIds = user.assignments
+    .filter((assignment) => assignment.isCoordinator)
+    .map((assignment) => assignment.courseId);
+
   const versions = await prisma.proformaVersion.findMany({
-    where: { status: { in: ACTIONABLE_STATUSES } },
+    where: {
+      status: { in: ACTIONABLE_STATUSES },
+      ...(!canSeeFacultyWide
+        ? {
+            course: {
+              OR: [
+                ...(programmeIds.length ? [{ programmeId: { in: programmeIds } }] : []),
+                ...(courseIds.length ? [{ id: { in: courseIds } }] : []),
+              ],
+            },
+          }
+        : {}),
+    },
     orderBy: { updatedAt: "desc" },
     include: { course: { include: { programme: true } } },
   });

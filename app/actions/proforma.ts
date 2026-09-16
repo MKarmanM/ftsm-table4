@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { createDraftVersion } from "@/lib/proforma-version";
 import { applyReviewAction } from "@/lib/proforma-workflow";
-import { canManageDraft, isActionPermitted } from "@/lib/permissions";
+import { canManageDraft, canViewDraft, isActionPermitted } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { Prisma, ReviewActionType } from "@/lib/generated/prisma/client";
 
@@ -203,6 +203,14 @@ export async function createCommentAction(
   }
   if (body.length > 2000) {
     return { error: "Komen terlalu panjang (maksimum 2000 aksara)." };
+  }
+
+  const version = await prisma.proformaVersion.findUnique({
+    where: { id: versionId },
+    select: { course: { select: { id: true, programmeId: true } } },
+  });
+  if (!version || !canViewDraft(currentUser, version.course)) {
+    return { error: PERMISSION_DENIED_MESSAGE };
   }
 
   try {

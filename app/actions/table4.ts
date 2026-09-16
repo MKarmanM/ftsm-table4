@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageDraft } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
-import { CourseClassification, AssessmentPhase, TaxonomyDomain } from "@/lib/generated/prisma/client";
+import {
+  Prisma,
+  CourseClassification,
+  AssessmentPhase,
+  TaxonomyDomain,
+} from "@/lib/generated/prisma/client";
 
 const PERMISSION_DENIED = "Anda tidak mempunyai kebenaran untuk mengedit draf ini.";
 const NOT_DRAFT = "Draf ini tidak lagi berstatus DRAFT — kandungan tidak boleh diedit.";
@@ -61,6 +66,30 @@ function revalidateVersion(courseId: string, versionId: string) {
   revalidatePath(`/courses/${courseId}/versions/${versionId}`);
 }
 
+async function withSerializableRetry<T>(
+  operation: (tx: Prisma.TransactionClient) => Promise<T>
+): Promise<T> {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    try {
+      return await prisma.$transaction(operation, {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      });
+    } catch (error) {
+      const retryable =
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        (error.code === "P2034" || error.code === "P2002");
+      if (!retryable || attempt === 3) throw error;
+    }
+  }
+  throw new Error("Transaksi tidak dapat diselesaikan.");
+}
+
+function validWeightage(raw: string): number | null {
+  if (!raw) return null;
+  const value = Number(raw);
+  return Number.isFinite(value) && value >= 0 && value <= 100 ? value : NaN;
+}
+
 // ---- Basic info (synopsis, staff, classification, etc.) ---------------
 
 export type SaveBasicInfoState = { error?: string; success?: boolean };
@@ -99,13 +128,26 @@ export async function saveBasicInfoAction(
   // "user cleared this field".
   const formPart = String(formData.get("formPart") ?? "");
 
+  const optionalInteger = (name: string) => {
+    const raw = String(formData.get(name) ?? "").trim();
+    if (!raw) return null;
+    const value = Number(raw);
+    return Number.isInteger(value) && value > 0 ? value : NaN;
+  };
+  const yearOffered = optionalInteger("yearOffered");
+  const semesterOffered = optionalInteger("semesterOffered");
+  if (
+    formPart !== "2" &&
+    (Number.isNaN(yearOffered) || Number.isNaN(semesterOffered))
+  ) {
+    return { error: "Tahun dan semester mesti nombor bulat positif." };
+  }
+
   const dataPart1 = {
     synopsis: combineBilingual("synopsisBm", "synopsisEn"),
     academicStaffNames: splitLines(String(formData.get("academicStaffNames") ?? "")),
-    yearOffered: formData.get("yearOffered") ? Number(formData.get("yearOffered")) : null,
-    semesterOffered: formData.get("semesterOffered")
-      ? Number(formData.get("semesterOffered"))
-      : null,
+    yearOffered,
+    semesterOffered,
     offeringRemarks: String(formData.get("offeringRemarks") ?? "") || null,
     prerequisite: String(formData.get("prerequisite") ?? "") || null,
     classification: formData.get("classification")
@@ -169,19 +211,25 @@ export async function addCloAction(
   const taxonomyDomain = taxonomyDomainRaw ? (taxonomyDomainRaw as TaxonomyDomain) : null;
   const taxonomyLevel = taxonomyLevelRaw ? Number(taxonomyLevelRaw) : null;
 
-  const count = await prisma.courseLearningOutcome.count({ where: { versionId } });
-
-  await prisma.courseLearningOutcome.create({
-    data: {
-      versionId,
-      orderIndex: count + 1,
-      text,
-      teachingMethods: String(formData.get("teachingMethods") ?? "") || null,
-      assessmentMethods: String(formData.get("assessmentMethods") ?? "") || null,
-      taxonomyDomain,
-      taxonomyLevel,
-    },
-  });
+  try {
+    await withSerializableRetry(async (tx) => {
+      const count = await tx.courseLearningOutcome.count({ where: { versionId } });
+      await tx.courseLearningOutcome.create({
+        data: {
+          versionId,
+          orderIndex: count + 1,
+          text,
+          teachingMethods: String(formData.get("teachingMethods") ?? "") || null,
+          assessmentMethods: String(formData.get("assessmentMethods") ?? "") || null,
+          taxonomyDomain,
+          taxonomyLevel,
+        },
+      });
+    });
+  } catch (error) {
+    console.error("addCloAction failed:", error);
+    return { error: "Gagal menambah CLO. Sila cuba lagi." };
+  }
 
   revalidateVersion(courseId, versionId);
   return {};
@@ -197,7 +245,10 @@ export async function removeCloAction(
   const check = await assertEditable(versionId);
   if ("error" in check) return { error: check.error };
 
-  await prisma.courseLearningOutcome.delete({ where: { id: cloId } });
+  const result = await prisma.courseLearningOutcome.deleteMany({
+    where: { id: cloId, versionId },
+  });
+  if (result.count === 0) return { error: "CLO tidak sah untuk versi ini." };
 
   revalidateVersion(courseId, versionId);
   return {};
@@ -223,8 +274,8 @@ export async function updateCloAction(
   const taxonomyDomain = taxonomyDomainRaw ? (taxonomyDomainRaw as TaxonomyDomain) : null;
   const taxonomyLevel = taxonomyLevelRaw ? Number(taxonomyLevelRaw) : null;
 
-  await prisma.courseLearningOutcome.update({
-    where: { id: cloId },
+  const result = await prisma.courseLearningOutcome.updateMany({
+    where: { id: cloId, versionId },
     data: {
       text,
       teachingMethods: String(formData.get("teachingMethods") ?? "") || null,
@@ -233,6 +284,7 @@ export async function updateCloAction(
       taxonomyLevel,
     },
   });
+  if (result.count === 0) return { error: "CLO tidak sah untuk versi ini." };
 
   revalidateVersion(courseId, versionId);
   return {};
@@ -248,6 +300,16 @@ export async function toggleCloPloMappingAction(
   const programmePloId = String(formData.get("programmePloId") ?? "");
   const check = await assertEditable(versionId);
   if ("error" in check) return { error: check.error };
+
+  const [clo, programmePlo] = await Promise.all([
+    prisma.courseLearningOutcome.findFirst({ where: { id: cloId, versionId } }),
+    prisma.programmePlo.findFirst({
+      where: { id: programmePloId, programmeId: check.course.programmeId },
+    }),
+  ]);
+  if (!clo || !programmePlo) {
+    return { error: "Pemetaan CLO–PLO tidak sah untuk versi ini." };
+  }
 
   const existing = await prisma.cloPloMapping.findUnique({
     where: { cloId_programmePloId: { cloId, programmePloId } },
@@ -279,18 +341,24 @@ export async function addTopicAction(
   const topicMs = String(formData.get("topicMs") ?? "").trim();
   if (!topicMs) return { error: "Nama topik (BM) wajib diisi." };
 
-  const count = await prisma.courseTopic.count({ where: { versionId } });
-
-  await prisma.courseTopic.create({
-    data: {
-      versionId,
-      orderIndex: count + 1,
-      topicMs,
-      topicEn: String(formData.get("topicEn") ?? "") || null,
-      cloRef: String(formData.get("cloRef") ?? "") || null,
-      hours: parseHours(formData, "topic"),
-    },
-  });
+  try {
+    await withSerializableRetry(async (tx) => {
+      const count = await tx.courseTopic.count({ where: { versionId } });
+      await tx.courseTopic.create({
+        data: {
+          versionId,
+          orderIndex: count + 1,
+          topicMs,
+          topicEn: String(formData.get("topicEn") ?? "") || null,
+          cloRef: String(formData.get("cloRef") ?? "") || null,
+          hours: parseHours(formData, "topic"),
+        },
+      });
+    });
+  } catch (error) {
+    console.error("addTopicAction failed:", error);
+    return { error: "Gagal menambah topik. Sila cuba lagi." };
+  }
 
   revalidateVersion(courseId, versionId);
   return {};
@@ -306,7 +374,10 @@ export async function removeTopicAction(
   const check = await assertEditable(versionId);
   if ("error" in check) return { error: check.error };
 
-  await prisma.courseTopic.delete({ where: { id: topicId } });
+  const result = await prisma.courseTopic.deleteMany({
+    where: { id: topicId, versionId },
+  });
+  if (result.count === 0) return { error: "Topik tidak sah untuk versi ini." };
 
   revalidateVersion(courseId, versionId);
   return {};
@@ -325,8 +396,8 @@ export async function updateTopicAction(
   const topicMs = String(formData.get("topicMs") ?? "").trim();
   if (!topicMs) return { error: "Nama topik (BM) wajib diisi." };
 
-  await prisma.courseTopic.update({
-    where: { id: topicId },
+  const result = await prisma.courseTopic.updateMany({
+    where: { id: topicId, versionId },
     data: {
       topicMs,
       topicEn: String(formData.get("topicEn") ?? "") || null,
@@ -334,6 +405,7 @@ export async function updateTopicAction(
       hours: parseHours(formData, "topic"),
     },
   });
+  if (result.count === 0) return { error: "Topik tidak sah untuk versi ini." };
 
   revalidateVersion(courseId, versionId);
   return {};
@@ -355,22 +427,36 @@ export async function addAssessmentAction(
   const nameMs = String(formData.get("nameMs") ?? "").trim();
   if (!nameMs) return { error: "Nama penilaian (BM) wajib diisi." };
 
-  const phase = String(formData.get("phase") ?? "CONTINUOUS") as AssessmentPhase;
+  const phaseRaw = String(formData.get("phase") ?? "CONTINUOUS");
+  if (!Object.values(AssessmentPhase).includes(phaseRaw as AssessmentPhase)) {
+    return { error: "Fasa penilaian tidak sah." };
+  }
+  const phase = phaseRaw as AssessmentPhase;
   const weightageRaw = String(formData.get("weightagePercent") ?? "").trim();
+  const weightagePercent = validWeightage(weightageRaw);
+  if (Number.isNaN(weightagePercent)) {
+    return { error: "Wajaran mesti nombor antara 0 hingga 100." };
+  }
 
-  const count = await prisma.assessmentItem.count({ where: { versionId, phase } });
-
-  await prisma.assessmentItem.create({
-    data: {
-      versionId,
-      phase,
-      orderIndex: count + 1,
-      nameMs,
-      nameEn: String(formData.get("nameEn") ?? "") || null,
-      weightagePercent: weightageRaw ? weightageRaw : null,
-      hours: parseAssessmentHours(formData),
-    },
-  });
+  try {
+    await withSerializableRetry(async (tx) => {
+      const count = await tx.assessmentItem.count({ where: { versionId, phase } });
+      await tx.assessmentItem.create({
+        data: {
+          versionId,
+          phase,
+          orderIndex: count + 1,
+          nameMs,
+          nameEn: String(formData.get("nameEn") ?? "") || null,
+          weightagePercent,
+          hours: parseAssessmentHours(formData),
+        },
+      });
+    });
+  } catch (error) {
+    console.error("addAssessmentAction failed:", error);
+    return { error: "Gagal menambah item penilaian. Sila cuba lagi." };
+  }
 
   revalidateVersion(courseId, versionId);
   return {};
@@ -386,7 +472,12 @@ export async function removeAssessmentAction(
   const check = await assertEditable(versionId);
   if ("error" in check) return { error: check.error };
 
-  await prisma.assessmentItem.delete({ where: { id: assessmentId } });
+  const result = await prisma.assessmentItem.deleteMany({
+    where: { id: assessmentId, versionId },
+  });
+  if (result.count === 0) {
+    return { error: "Item penilaian tidak sah untuk versi ini." };
+  }
 
   revalidateVersion(courseId, versionId);
   return {};
@@ -406,16 +497,28 @@ export async function updateAssessmentAction(
   if (!nameMs) return { error: "Nama penilaian (BM) wajib diisi." };
 
   const weightageRaw = String(formData.get("weightagePercent") ?? "").trim();
+  const weightagePercent = validWeightage(weightageRaw);
+  if (Number.isNaN(weightagePercent)) {
+    return { error: "Wajaran mesti nombor antara 0 hingga 100." };
+  }
 
-  await prisma.assessmentItem.update({
-    where: { id: assessmentId },
-    data: {
-      nameMs,
-      nameEn: String(formData.get("nameEn") ?? "") || null,
-      weightagePercent: weightageRaw ? weightageRaw : null,
-      hours: parseAssessmentHours(formData),
-    },
-  });
+  try {
+    const result = await prisma.assessmentItem.updateMany({
+      where: { id: assessmentId, versionId },
+      data: {
+        nameMs,
+        nameEn: String(formData.get("nameEn") ?? "") || null,
+        weightagePercent,
+        hours: parseAssessmentHours(formData),
+      },
+    });
+    if (result.count === 0) {
+      return { error: "Item penilaian tidak sah untuk versi ini." };
+    }
+  } catch (error) {
+    console.error("updateAssessmentAction failed:", error);
+    return { error: "Gagal mengemaskini item penilaian. Sila cuba lagi." };
+  }
 
   revalidateVersion(courseId, versionId);
   return {};

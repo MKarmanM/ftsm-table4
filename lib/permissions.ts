@@ -80,6 +80,22 @@ export function canManageDraft(
   );
 }
 
+// Reading a proforma is broader than editing it, but it must still stay
+// inside the user's academic scope. Faculty-wide officers can review every
+// programme, programme coordinators can review their own programme, and
+// assigned teaching staff can read the courses they are attached to.
+export function canViewDraft(
+  user: PermissionUser,
+  course: CourseContext
+): boolean {
+  return (
+    isAdmin(user) ||
+    isFacultyOfficer(user) ||
+    isProgrammeCoordinatorOf(user, course.programmeId) ||
+    user.assignments.some((assignment) => assignment.courseId === course.id)
+  );
+}
+
 // Which of the statuses-allow-this-transition actions this specific user
 // is actually permitted to perform, given the approval chain:
 // Course Coordinator submits → Programme Coordinator reviews/approves →

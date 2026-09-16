@@ -135,8 +135,29 @@ export async function removeRoleAction(
   }
 
   try {
-    await prisma.userRole.delete({ where: { id: userRoleId } });
+    await prisma.$transaction(async (tx) => {
+      const roleToRemove = await tx.userRole.findUnique({
+        where: { id: userRoleId },
+        select: { role: true },
+      });
+      if (!roleToRemove) throw new Error("ROLE_NOT_FOUND");
+
+      if (roleToRemove.role === Role.ADMIN) {
+        const adminCount = await tx.userRole.count({
+          where: { role: Role.ADMIN, programmeId: null, user: { isActive: true } },
+        });
+        if (adminCount <= 1) throw new Error("LAST_ADMIN");
+      }
+
+      await tx.userRole.delete({ where: { id: userRoleId } });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   } catch (err) {
+    if (err instanceof Error && err.message === "LAST_ADMIN") {
+      return { error: "Peranan ADMIN terakhir tidak boleh dibuang." };
+    }
+    if (err instanceof Error && err.message === "ROLE_NOT_FOUND") {
+      return { error: "Peranan tidak dijumpai." };
+    }
     console.error("removeRoleAction failed:", err);
     return { error: "Gagal membuang peranan. Sila cuba lagi." };
   }
