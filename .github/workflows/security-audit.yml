@@ -44,8 +44,11 @@ jobs:
           npm pkg set 'overrides.deepmerge-ts=^8.0.0'
           npm pkg set 'overrides.mysql2=>3.23.0'
           npm pkg set 'overrides.uuid=^11.1.1'
-          npm install --package-lock-only
+          npm install --package-lock-only --ignore-scripts
           npm ci
+
+      - name: Show resolved security packages
+        run: npm ls deepmerge-ts mysql2 uuid
 
       - name: NPM audit
         run: npm audit --audit-level=moderate
