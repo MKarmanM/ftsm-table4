@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageDraft } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { validateTable4ControlledValues } from "@/lib/table4-master-data";
 import {
   Prisma,
   CourseClassification,
@@ -50,6 +51,7 @@ function parseHours(formData: FormData, prefix: string) {
     independent: num(formData, `${prefix}Independent`),
   };
 }
+
 // Assessment items only have a single Physical and single Online total
 // each (the official template merges those cells into one) — unlike
 // weekly topics, which have genuine separate L/T/P/O columns. The
@@ -62,6 +64,7 @@ function parseAssessmentHours(formData: FormData) {
     independent: num(formData, "assessmentIndependent"),
   };
 }
+
 function revalidateVersion(courseId: string, versionId: string) {
   revalidatePath(`/courses/${courseId}/versions/${versionId}`);
 }
@@ -88,6 +91,28 @@ function validWeightage(raw: string): number | null {
   if (!raw) return null;
   const value = Number(raw);
   return Number.isFinite(value) && value >= 0 && value <= 100 ? value : NaN;
+}
+
+function parseTaxonomy(formData: FormData) {
+  const domainRaw = String(formData.get("taxonomyDomain") ?? "");
+  const levelRaw = String(formData.get("taxonomyLevel") ?? "");
+
+  if (domainRaw && !Object.values(TaxonomyDomain).includes(domainRaw as TaxonomyDomain)) {
+    return { error: "Domain taksonomi tidak sah." } as const;
+  }
+
+  const taxonomyLevel = levelRaw ? Number(levelRaw) : null;
+  if (
+    taxonomyLevel !== null &&
+    (!Number.isInteger(taxonomyLevel) || taxonomyLevel < 1 || taxonomyLevel > 6)
+  ) {
+    return { error: "Tahap taksonomi mesti nombor bulat antara 1 hingga 6." } as const;
+  }
+
+  return {
+    taxonomyDomain: domainRaw ? (domainRaw as TaxonomyDomain) : null,
+    taxonomyLevel,
+  } as const;
 }
 
 // ---- Basic info (synopsis, staff, classification, etc.) ---------------
@@ -119,13 +144,7 @@ export async function saveBasicInfoAction(
   };
 
   // This action is submitted from two separate, independent forms on the
-  // page (matching where each item falls in the official Table 4 item
-  // order — items 1–6 appear before the CLO section, items 9 & 11–15
-  // appear after SLT/assessments). `formPart` tells us which one fired,
-  // so we only touch the fields that form actually contains — otherwise
-  // submitting Part 1 would silently wipe out Part 2's fields (and vice
-  // versa), since a missing field in FormData is indistinguishable from
-  // "user cleared this field".
+  // page. `formPart` ensures a save only touches fields rendered by that form.
   const formPart = String(formData.get("formPart") ?? "");
 
   const optionalInteger = (name: string) => {
@@ -143,6 +162,15 @@ export async function saveBasicInfoAction(
     return { error: "Tahun dan semester mesti nombor bulat positif." };
   }
 
+  const classificationRaw = String(formData.get("classification") ?? "");
+  if (
+    formPart !== "2" &&
+    classificationRaw &&
+    !Object.values(CourseClassification).includes(classificationRaw as CourseClassification)
+  ) {
+    return { error: "Klasifikasi kursus tidak sah." };
+  }
+
   const dataPart1 = {
     synopsis: combineBilingual("synopsisBm", "synopsisEn"),
     academicStaffNames: splitLines(String(formData.get("academicStaffNames") ?? "")),
@@ -150,28 +178,36 @@ export async function saveBasicInfoAction(
     semesterOffered,
     offeringRemarks: String(formData.get("offeringRemarks") ?? "") || null,
     prerequisite: String(formData.get("prerequisite") ?? "") || null,
-    classification: formData.get("classification")
-      ? (String(formData.get("classification")) as CourseClassification)
+    classification: classificationRaw
+      ? (classificationRaw as CourseClassification)
       : null,
     classificationDomain: String(formData.get("classificationDomain") ?? "") || null,
   };
+
+  const futureReadyElements = formData.getAll("futureReadyElements").map(String);
+  const excelFramework = formData.getAll("excelFramework").map(String);
+  const sdgTags = formData.getAll("sdgTags").map(String);
+
+  if (formPart === "2") {
+    const controlledValueError = validateTable4ControlledValues({
+      futureReadyElements,
+      excelFramework,
+      sdgTags,
+    });
+    if (controlledValueError) return { error: controlledValueError };
+  }
 
   const dataPart2 = {
     transferableSkills: splitLines(String(formData.get("transferableSkills") ?? "")),
     specialRequirements: String(formData.get("specialRequirements") ?? "") || null,
     referencesText: String(formData.get("referencesText") ?? "") || null,
-    // Checkbox groups — multiple values can share the same field name.
-    futureReadyElements: formData.getAll("futureReadyElements").map(String),
-    excelFramework: formData.getAll("excelFramework").map(String),
-    sdgTags: formData.getAll("sdgTags").map(String),
+    futureReadyElements,
+    excelFramework,
+    sdgTags,
     aiElement: formData.get("aiElement") === "on",
     isIndustrialTraining50Elt: formData.get("isIndustrialTraining50Elt") === "on",
-    facultyApprovalDate: formData.get("facultyApprovalDate")
-      ? new Date(String(formData.get("facultyApprovalDate")))
-      : null,
-    senateApprovalDate: formData.get("senateApprovalDate")
-      ? new Date(String(formData.get("senateApprovalDate")))
-      : null,
+    // Approval dates intentionally omitted: they are workflow-owned fields
+    // set only by APPROVE/PUBLISH transitions in lib/proforma-workflow.ts.
   };
 
   try {
@@ -206,10 +242,8 @@ export async function addCloAction(
   if (!textBm) return { error: "Teks CLO (Bahasa Malaysia) wajib diisi." };
   const text = textEn ? `${textBm}\n${textEn}` : textBm;
 
-  const taxonomyDomainRaw = String(formData.get("taxonomyDomain") ?? "");
-  const taxonomyLevelRaw = String(formData.get("taxonomyLevel") ?? "");
-  const taxonomyDomain = taxonomyDomainRaw ? (taxonomyDomainRaw as TaxonomyDomain) : null;
-  const taxonomyLevel = taxonomyLevelRaw ? Number(taxonomyLevelRaw) : null;
+  const taxonomy = parseTaxonomy(formData);
+  if ("error" in taxonomy) return { error: taxonomy.error };
 
   try {
     await withSerializableRetry(async (tx) => {
@@ -221,8 +255,8 @@ export async function addCloAction(
           text,
           teachingMethods: String(formData.get("teachingMethods") ?? "") || null,
           assessmentMethods: String(formData.get("assessmentMethods") ?? "") || null,
-          taxonomyDomain,
-          taxonomyLevel,
+          taxonomyDomain: taxonomy.taxonomyDomain,
+          taxonomyLevel: taxonomy.taxonomyLevel,
         },
       });
     });
@@ -269,10 +303,8 @@ export async function updateCloAction(
   if (!textBm) return { error: "Teks CLO (Bahasa Malaysia) wajib diisi." };
   const text = textEn ? `${textBm}\n${textEn}` : textBm;
 
-  const taxonomyDomainRaw = String(formData.get("taxonomyDomain") ?? "");
-  const taxonomyLevelRaw = String(formData.get("taxonomyLevel") ?? "");
-  const taxonomyDomain = taxonomyDomainRaw ? (taxonomyDomainRaw as TaxonomyDomain) : null;
-  const taxonomyLevel = taxonomyLevelRaw ? Number(taxonomyLevelRaw) : null;
+  const taxonomy = parseTaxonomy(formData);
+  if ("error" in taxonomy) return { error: taxonomy.error };
 
   const result = await prisma.courseLearningOutcome.updateMany({
     where: { id: cloId, versionId },
@@ -280,8 +312,8 @@ export async function updateCloAction(
       text,
       teachingMethods: String(formData.get("teachingMethods") ?? "") || null,
       assessmentMethods: String(formData.get("assessmentMethods") ?? "") || null,
-      taxonomyDomain,
-      taxonomyLevel,
+      taxonomyDomain: taxonomy.taxonomyDomain,
+      taxonomyLevel: taxonomy.taxonomyLevel,
     },
   });
   if (result.count === 0) return { error: "CLO tidak sah untuk versi ini." };
