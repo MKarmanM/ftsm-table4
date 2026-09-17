@@ -209,16 +209,10 @@ export async function updateCourseAction(
   const code = String(formData.get("code") ?? "").trim().toUpperCase();
   const nameMs = String(formData.get("nameMs") ?? "").trim();
   const nameEn = String(formData.get("nameEn") ?? "").trim();
-  const creditHoursRaw = String(formData.get("creditHours") ?? "").trim();
   const programmeId = String(formData.get("programmeId") ?? "").trim();
 
   if (!courseId || !code || !nameMs || !programmeId) {
     return { error: "Kod, nama kursus (BM), dan program wajib diisi." };
-  }
-
-  const creditHours = Number(creditHoursRaw);
-  if (!creditHoursRaw || Number.isNaN(creditHours) || creditHours <= 0) {
-    return { error: "Kredit mesti nombor yang sah (contoh: 3 atau 3.5)." };
   }
 
   const programme = await prisma.programme.findUnique({
@@ -232,7 +226,8 @@ export async function updateCourseAction(
   try {
     await prisma.course.update({
       where: { id: courseId },
-      data: { code, nameMs, nameEn: nameEn || null, creditHours, programmeId },
+      // creditHours intentionally omitted: it is system-derived from SLT.
+      data: { code, nameMs, nameEn: nameEn || null, programmeId },
     });
   } catch (err) {
     if (isDuplicateCodeError(err)) {
