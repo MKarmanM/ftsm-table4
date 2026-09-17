@@ -12,7 +12,6 @@ export async function validateTable4ForSubmission(
   const version = await prisma.proformaVersion.findUnique({
     where: { id: versionId },
     include: {
-      course: { select: { creditHours: true } },
       clos: { include: { mappings: true } },
       topics: { include: { cloMappings: true } },
       assessments: true,
@@ -94,13 +93,10 @@ export async function validateTable4ForSubmission(
     version.isIndustrialTraining50Elt
   );
 
-  const expectedCredit = Number(version.course.creditHours);
-  if (slt.grandTotal <= 0) {
-    issues.push({ code: "SLT_REQUIRED", message: "Jumlah SLT mestilah lebih daripada 0 jam." });
-  } else if (slt.suggestedCreditHours !== expectedCredit) {
+  if (slt.grandTotal <= 0 || slt.suggestedCreditHours <= 0) {
     issues.push({
-      code: "SLT_CREDIT_MISMATCH",
-      message: `Jumlah SLT (${slt.grandTotal} jam) menghasilkan ${slt.suggestedCreditHours} kredit, tetapi kursus ditetapkan ${expectedCredit} kredit.`,
+      code: "SLT_REQUIRED",
+      message: "Jumlah SLT belum mencukupi untuk menghasilkan nilai kredit kursus.",
     });
   }
 
