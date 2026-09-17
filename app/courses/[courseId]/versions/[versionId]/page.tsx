@@ -7,6 +7,7 @@ import { getAllowedActions } from "@/lib/workflow-constants";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageDraft, canViewDraft, filterActionsByPermission } from "@/lib/permissions";
 import { getAuditEventsForVersion } from "@/lib/audit";
+import { auditActionLabel, reviewActionLabel } from "@/lib/activity-labels";
 import { StatusBadge } from "@/components/status-badge";
 import { ReviewActionButtons } from "@/components/review-action-buttons";
 import { CommentThread } from "@/components/comment-thread";
@@ -26,6 +27,16 @@ const RECENT_HISTORY_LIMIT = 3;
 
 function actorRoleLabel(roles: string[]): string {
   return roles.map((r) => ROLE_LABEL[r] ?? r).join(", ");
+}
+
+function formatActivityDate(date: Date) {
+  return date.toLocaleString("ms-MY", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
 }
 
 export default async function VersionDetailPage({
@@ -269,16 +280,21 @@ export default async function VersionDetailPage({
 
           <aside className="min-w-0 space-y-6 text-sm">
             <div>
-              <p className="mb-2 text-xs font-semibold tracking-wide text-secondary uppercase">
-                Sejarah Semakan
-              </p>
+              <div className="mb-2 flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold tracking-wide text-secondary uppercase">
+                  Sejarah Semakan
+                </p>
+                <span className="rounded-full bg-muted px-2 py-0.5 text-xs text-secondary">
+                  {version.reviewActions.length}
+                </span>
+              </div>
               {version.reviewActions.length === 0 ? (
                 <p className="text-sm text-secondary italic">Belum ada tindakan direkodkan.</p>
               ) : (
                 <ul className="space-y-2.5">
                   {recentHistory.map((action) => (
-                    <li key={action.id} className="border-b border-border pb-2.5 last:border-0">
-                      <div className="flex items-center justify-between">
+                    <li key={action.id} className="rounded-md border border-border bg-card p-3">
+                      <div className="flex items-start justify-between gap-2">
                         <span className="text-sm font-medium text-foreground">
                           {action.actorName}
                           {action.actorRoles.length > 0 && (
@@ -287,12 +303,14 @@ export default async function VersionDetailPage({
                             </span>
                           )}
                         </span>
-                        <span className="text-xs text-secondary">
-                          {action.createdAt.toLocaleDateString("ms-MY")}
+                        <span className="whitespace-nowrap text-[11px] text-secondary">
+                          {formatActivityDate(action.createdAt)}
                         </span>
                       </div>
-                      <p className="text-sm text-secondary">{action.type}</p>
-                      {action.note && <p className="mt-0.5 text-sm text-foreground">{action.note}</p>}
+                      <p className="mt-1 text-sm font-medium text-primary">
+                        {reviewActionLabel(action.type)}
+                      </p>
+                      {action.note && <p className="mt-1 text-sm leading-relaxed text-foreground">{action.note}</p>}
                     </li>
                   ))}
                 </ul>
@@ -304,8 +322,8 @@ export default async function VersionDetailPage({
                   </summary>
                   <ul className="mt-2 space-y-2.5">
                     {version.reviewActions.slice(RECENT_HISTORY_LIMIT).map((action) => (
-                      <li key={action.id} className="border-b border-border pb-2.5 last:border-0">
-                        <div className="flex items-center justify-between">
+                      <li key={action.id} className="rounded-md border border-border bg-card p-3">
+                        <div className="flex items-start justify-between gap-2">
                           <span className="text-sm font-medium text-foreground">
                             {action.actorName}
                             {action.actorRoles.length > 0 && (
@@ -314,12 +332,14 @@ export default async function VersionDetailPage({
                               </span>
                             )}
                           </span>
-                          <span className="text-xs text-secondary">
-                            {action.createdAt.toLocaleDateString("ms-MY")}
+                          <span className="whitespace-nowrap text-[11px] text-secondary">
+                            {formatActivityDate(action.createdAt)}
                           </span>
                         </div>
-                        <p className="text-sm text-secondary">{action.type}</p>
-                        {action.note && <p className="mt-0.5 text-sm text-foreground">{action.note}</p>}
+                        <p className="mt-1 text-sm font-medium text-primary">
+                          {reviewActionLabel(action.type)}
+                        </p>
+                        {action.note && <p className="mt-1 text-sm leading-relaxed text-foreground">{action.note}</p>}
                       </li>
                     ))}
                   </ul>
@@ -341,21 +361,21 @@ export default async function VersionDetailPage({
             <div className="border-t border-border pt-5">
               <details>
                 <summary className="cursor-pointer text-xs font-semibold tracking-wide text-secondary uppercase">
-                  Log Audit
+                  Log Audit ({auditEvents.length})
                 </summary>
                 {auditEvents.length === 0 ? (
                   <p className="mt-2 text-sm text-secondary italic">Belum ada log direkodkan.</p>
                 ) : (
-                  <ul className="mt-2 space-y-1.5">
+                  <ul className="mt-3 space-y-2">
                     {auditEvents.map((e) => (
-                      <li key={e.id} className="border-b border-border pb-1.5 text-xs last:border-0">
-                        <div className="flex items-center justify-between gap-2">
+                      <li key={e.id} className="rounded-md border border-border bg-muted/20 p-2.5 text-xs">
+                        <div className="flex items-start justify-between gap-2">
                           <span className="font-medium text-foreground">{e.actorName}</span>
-                          <span className="whitespace-nowrap text-secondary">
-                            {e.createdAt.toLocaleDateString("ms-MY")}
+                          <span className="whitespace-nowrap text-[11px] text-secondary">
+                            {formatActivityDate(e.createdAt)}
                           </span>
                         </div>
-                        <span className="text-secondary">{e.action}</span>
+                        <span className="mt-1 block text-secondary">{auditActionLabel(e.action)}</span>
                       </li>
                     ))}
                   </ul>
