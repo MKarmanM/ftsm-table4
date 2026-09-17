@@ -51,28 +51,24 @@
 }
 
 :root {
-  /* Academic / Enterprise colour system per spec:
-     Primary navy #0F2A43, Secondary slate #64748B, Page bg #F8FAFC,
-     Card #FFFFFF, Border #E2E8F0, Success #15803D, Warning #B45309,
-     Error #DC2626. */
-  --background: oklch(0.984 0.003 247.86); /* #F8FAFC */
-  --foreground: oklch(0.21 0.034 264.665); /* near-navy body text */
-  --card: oklch(1 0 0); /* #FFFFFF */
+  --background: oklch(0.984 0.003 247.86);
+  --foreground: oklch(0.21 0.034 264.665);
+  --card: oklch(1 0 0);
   --card-foreground: oklch(0.21 0.034 264.665);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.21 0.034 264.665);
-  --primary: oklch(0.276 0.06 254.6); /* #0F2A43 */
+  --primary: oklch(0.276 0.06 254.6);
   --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.48 0.045 257.42); /* darkened slightly from #64748B for better contrast on long-form helper text */
+  --secondary: oklch(0.48 0.045 257.42);
   --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.968 0.007 247.9); /* light slate tint */
-  --muted-foreground: oklch(0.4 0.03 256.8); /* darkened slightly for readability */
+  --muted: oklch(0.968 0.007 247.9);
+  --muted-foreground: oklch(0.4 0.03 256.8);
   --accent: oklch(0.94 0.02 255);
   --accent-foreground: oklch(0.276 0.06 254.6);
-  --destructive: oklch(0.577 0.245 27.325); /* #DC2626 */
-  --success: oklch(0.482 0.13 152.5); /* #15803D */
-  --warning: oklch(0.55 0.14 55); /* #B45309 */
-  --border: oklch(0.928 0.006 264.5); /* #E2E8F0 */
+  --destructive: oklch(0.577 0.245 27.325);
+  --success: oklch(0.482 0.13 152.5);
+  --warning: oklch(0.55 0.14 55);
+  --border: oklch(0.928 0.006 264.5);
   --input: oklch(0.928 0.006 264.5);
   --ring: oklch(0.554 0.041 257.42);
   --chart-1: oklch(0.87 0 0);
@@ -129,10 +125,48 @@
   * {
     @apply border-border outline-ring/50;
   }
+
   body {
     @apply bg-background text-foreground;
   }
+
   html {
     @apply font-sans;
+  }
+
+  input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]),
+  textarea,
+  select {
+    transition-property: border-color, box-shadow, background-color;
+    transition-duration: 150ms;
+  }
+
+  input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]):focus-visible,
+  textarea:focus-visible,
+  select:focus-visible {
+    border-color: var(--ring);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 20%, transparent);
+    outline: none;
+  }
+
+  input[type="checkbox"],
+  input[type="radio"] {
+    width: 1.05rem;
+    height: 1.05rem;
+    flex-shrink: 0;
+    accent-color: var(--primary);
+    cursor: pointer;
+  }
+
+  input[type="checkbox"]:focus-visible,
+  input[type="radio"]:focus-visible {
+    outline: 3px solid color-mix(in oklch, var(--ring) 24%, transparent);
+    outline-offset: 2px;
+  }
+
+  input:disabled,
+  textarea:disabled,
+  select:disabled {
+    cursor: not-allowed;
   }
 }

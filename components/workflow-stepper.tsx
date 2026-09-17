@@ -39,37 +39,66 @@ export function workflowWaitingText(status: ProformaStatus): string {
 
 export function WorkflowStepper({ status }: { status: ProformaStatus }) {
   const current = STAGE_INDEX[status];
+  const needsChanges = status === ProformaStatus.CHANGES_REQUESTED;
 
   return (
-    <div className="mb-6 rounded-md border border-border bg-card p-4">
-      <div className="flex items-center gap-2 overflow-x-auto pb-1" aria-label="Kemajuan aliran kerja Table 4">
+    <div className="mb-5 rounded-lg border border-border bg-card p-3 sm:mb-6 sm:p-4">
+      <div
+        className="flex items-center gap-1 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        aria-label="Kemajuan aliran kerja Table 4"
+      >
         {STEPS.map((step, index) => {
           const completed = index < current || status === ProformaStatus.PUBLISHED;
           const active = index === current && status !== ProformaStatus.PUBLISHED;
+          const warningActive = active && needsChanges;
           return (
-            <div key={step.key} className="flex min-w-0 flex-1 items-center gap-2">
+            <div key={step.key} className="flex min-w-max flex-1 items-center gap-2">
               <div
                 className={cn(
-                  "flex size-7 shrink-0 items-center justify-center rounded-full border text-xs font-semibold",
+                  "flex size-8 shrink-0 items-center justify-center rounded-full border text-xs font-semibold transition-colors",
                   completed && "border-primary bg-primary text-primary-foreground",
-                  active && "border-primary bg-primary/10 text-primary",
+                  active && !warningActive && "border-primary bg-primary/10 text-primary ring-4 ring-primary/5",
+                  warningActive && "border-warning bg-warning/10 text-warning ring-4 ring-warning/5",
                   !completed && !active && "border-border bg-background text-muted-foreground"
                 )}
               >
                 {completed ? "✓" : index + 1}
               </div>
-              <span className={cn("whitespace-nowrap text-sm", (completed || active) ? "font-medium text-foreground" : "text-muted-foreground")}>
+              <span
+                className={cn(
+                  "whitespace-nowrap text-sm",
+                  completed && "font-medium text-foreground",
+                  active && !warningActive && "font-semibold text-primary",
+                  warningActive && "font-semibold text-warning",
+                  !completed && !active && "text-muted-foreground"
+                )}
+              >
                 {step.label}
               </span>
-              {index < STEPS.length - 1 && <div className="h-px min-w-6 flex-1 bg-border" />}
+              {index < STEPS.length - 1 && (
+                <div
+                  className={cn(
+                    "h-0.5 min-w-8 flex-1 rounded-full transition-colors",
+                    index < current || status === ProformaStatus.PUBLISHED
+                      ? "bg-primary"
+                      : "bg-border"
+                  )}
+                />
+              )}
             </div>
           );
         })}
       </div>
-      <p className={cn(
-        "mt-3 rounded-md px-3 py-2 text-sm",
-        status === ProformaStatus.CHANGES_REQUESTED ? "bg-warning/10 text-warning" : "bg-muted/50 text-foreground"
-      )}>
+      <p
+        className={cn(
+          "mt-3 rounded-md border px-3 py-2 text-sm leading-relaxed",
+          needsChanges
+            ? "border-warning/20 bg-warning/8 text-warning"
+            : status === ProformaStatus.PUBLISHED
+              ? "border-success/20 bg-success/5 text-success"
+              : "border-border/70 bg-muted/40 text-foreground"
+        )}
+      >
         {workflowWaitingText(status)}
       </p>
     </div>
