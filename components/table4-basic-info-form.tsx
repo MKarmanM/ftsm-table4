@@ -6,6 +6,12 @@ import {
   type SaveBasicInfoState,
 } from "@/app/actions/table4";
 import { BilingualLabel, BilingualTextarea } from "@/components/table4-bilingual-label";
+import {
+  EXCEL_FRAMEWORK_OPTIONS,
+  FUTURE_READY_OPTIONS,
+  SDG_MAX_SELECTION,
+  SDG_OPTIONS,
+} from "@/lib/table4-master-data";
 
 const initialState: SaveBasicInfoState = {};
 
@@ -18,42 +24,6 @@ const CLASSIFICATION_OPTIONS = [
   { value: "AUDIT", label: "Audit" },
 ];
 
-const FUTURE_READY_OPTIONS = [
-  "Element 1: Fluid & Organic Curriculum Structure / Elemen 1: Struktur Kurikulum Lentur dan Organik",
-  "Element 2: Transformative Learning & Teaching Delivery / Elemen 2: Pembelajaran Transformatif dan Penyampaian Pengajaran",
-  "Element 3: Alternative Assessments / Elemen 3: Penilaian Alternatif",
-];
-const EXCEL_FRAMEWORK_OPTIONS = [
-  "REAL (Research Infused Experiential Learning)",
-  "IDEAL (Industry Driven Experiential Learning)",
-  "POISE (Personalized Experiential Learning)",
-  "CARE (Community Resilience Experiential Learning)",
-];
-const SDG_OPTIONS = [
-  "SDG1: No Poverty/Tiada Kemiskinan",
-  "SDG2: Zero Hunger/Kelaparan Sifar",
-  "SDG3: Good Health and Well Being/Kesihatan dan Kesejahteraan yang Baik",
-  "SDG4: Quality Education/Pendidikan Berkualiti",
-  "SDG5: Gender Equality/Kesamarataan Gender",
-  "SDG6: Clean Water and Sanitation/Kebersihan Air dan Sanitasi",
-  "SDG7: Affordable and Clean Energy/Tenaga yang Berpatutan dan Bersih",
-  "SDG8: Decent Work and Economic Growth/Pekerjaan Baik dan Kemajuan Ekonomi",
-  "SDG9: Industry, Innovation and Infrastructure/Industri, Inovasi dan Infrastruktur",
-  "SDG10: Reduced Inequalities/Mengurangkan Ketidaksamarataan",
-  "SDG11: Sustainable Cities and Communities/Bandar dan Komuniti Mampan",
-  "SDG12: Responsible Consumption and Production/Penggunaan dan Penghasilan yang Bertanggungjawab",
-  "SDG13: Climate Action/Tindakan Iklim",
-  "SDG14: Life Below Water/Kehidupan di dalam Air",
-  "SDG15: Life on Land/Kehidupan di atas Darat",
-  "SDG16: Peace, Justice and Strong Institutions/Keamanan, Keadilan dan Institusi yang Kukuh",
-  "SDG17: Partnerships for the Goals/Rakan Kerjasama untuk Matlamat",
-];
-const SDG_MAX_SELECTION = 2; // The official template only has 2 SDG boxes.
-
-function fmtDate(d: string | null) {
-  if (!d) return "";
-  return d.slice(0, 10);
-}
 function fmtDateDisplay(d: Date | null) {
   if (!d) return "Belum ditetapkan";
   return new Date(d).toLocaleDateString("ms-MY");
@@ -349,11 +319,11 @@ export function BasicInfoFormPart2({
         </label>
       </div>
 
-      {/* Item 15 — derived automatically from the workflow, not typed. */}
+      {/* Item 15 is workflow-owned governance data, never submitted by this editor. */}
       <div>
         <BilingualLabel en="Latest Approval Date" ms="Tarikh Kelulusan Terkini" />
         <p className="mt-1 text-xs text-muted-foreground">
-          Ditetapkan automatik apabila draf diluluskan/diterbitkan &mdash; tidak boleh ditaip terus.
+          Ditetapkan automatik oleh aliran kelulusan &mdash; pengguna draf tidak boleh mengubahnya.
         </p>
         <div className="mt-1.5 grid grid-cols-2 gap-4">
           <div>
@@ -392,12 +362,6 @@ export function BasicInfoFormPart2({
       </label>
 
       {!readOnly && <SaveStatus state={state} isPending={isPending} />}
-
-      {/* Hidden fields keep unused-but-required date inputs out of the
-          form entirely — nothing to submit for Item 15 since it's
-          derived, not entered. */}
-      <input type="hidden" name="facultyApprovalDate" value={fmtDate(initial.facultyApprovalDate?.toString() ?? null)} />
-      <input type="hidden" name="senateApprovalDate" value={fmtDate(initial.senateApprovalDate?.toString() ?? null)} />
     </form>
   );
 }
@@ -424,7 +388,7 @@ function Field({
 function CheckboxGroup({
   labelEn, labelMs, name, options, selected, readOnly,
 }: {
-  labelEn: string; labelMs: string; name: string; options: string[]; selected: string[]; readOnly: boolean;
+  labelEn: string; labelMs: string; name: string; options: readonly string[]; selected: string[]; readOnly: boolean;
 }) {
   return (
     <div>
