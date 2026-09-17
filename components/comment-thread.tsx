@@ -6,6 +6,10 @@ import {
   type CreateCommentState,
 } from "@/app/actions/proforma";
 import { Button } from "@/components/ui/button";
+import {
+  REVIEW_COMMENT_SECTIONS,
+  getReviewCommentSectionLabel,
+} from "@/lib/review-comment-sections";
 
 type Comment = {
   id: string;
@@ -16,23 +20,6 @@ type Comment = {
 };
 
 const initialState: CreateCommentState = {};
-
-const SECTION_OPTIONS = [
-  { value: "", label: "Umum / General" },
-  { value: "basic.synopsis", label: "Maklumat Kursus — Sinopsis" },
-  { value: "basic.staff", label: "Maklumat Kursus — Staf Akademik" },
-  { value: "clo", label: "CLO / PLO" },
-  { value: "slt", label: "SLT / Topik" },
-  { value: "assessment.continuous", label: "Penilaian Berterusan" },
-  { value: "assessment.final", label: "Penilaian Akhir" },
-  { value: "other.references", label: "Maklumat Lain — Rujukan" },
-  { value: "other", label: "Maklumat Lain" },
-];
-
-function sectionLabel(value: string | null) {
-  if (!value) return "Umum";
-  return SECTION_OPTIONS.find((option) => option.value === value)?.label ?? value;
-}
 
 export function CommentThread({
   versionId,
@@ -77,7 +64,7 @@ export function CommentThread({
                 </span>
               </div>
               <p className="mt-1 inline-flex rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">
-                {sectionLabel(c.sectionKey)}
+                {getReviewCommentSectionLabel(c.sectionKey)}
               </p>
               <p className="mt-1.5 whitespace-pre-wrap text-foreground">
                 {c.body}
@@ -97,7 +84,7 @@ export function CommentThread({
             defaultValue=""
             className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           >
-            {SECTION_OPTIONS.map((option) => (
+            {REVIEW_COMMENT_SECTIONS.map((option) => (
               <option key={option.value || "general"} value={option.value}>
                 {option.label}
               </option>
