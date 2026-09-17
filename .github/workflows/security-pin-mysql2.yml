@@ -1,0 +1,43 @@
+name: Pin mysql2 security override
+
+on:
+  push:
+    branches: [security-audit-run]
+
+permissions:
+  contents: write
+
+jobs:
+  pin:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgresql://localhost/ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Regenerate verified dependency files
+        run: |
+          npm pkg set 'overrides.deepmerge-ts=^8.0.0'
+          npm pkg set 'overrides.mysql2=^3.24.4'
+          npm pkg set 'overrides.uuid=^11.1.1'
+          npm install --package-lock-only --ignore-scripts
+      - name: Promote package files
+        run: |
+          cp package.json /tmp/package.json
+          cp package-lock.json /tmp/package-lock.json
+          git fetch origin security-hardening
+          git checkout security-hardening
+          cp /tmp/package.json package.json
+          cp /tmp/package-lock.json package-lock.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "No changes."
+          else
+            git commit -m "fix: pin mysql2 security override to patched 3.x"
+            git push origin security-hardening
+          fi
