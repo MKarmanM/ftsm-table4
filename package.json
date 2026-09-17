@@ -5,12 +5,12 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "prestart": "prisma migrate deploy",
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
     "test": "node --import tsx --test tests/*.test.ts",
     "postinstall": "prisma generate",
+    "migrate:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts"
   },
   "engines": {
