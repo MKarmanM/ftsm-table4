@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { computeSltSummary, normalizeHours } from "./table4-detail";
+import { validateGovernanceFields } from "./table4-master-data";
 
 export type Table4ValidationIssue = {
   code: string;
@@ -103,6 +104,16 @@ export async function validateTable4ForSubmission(
   if (!requiredText(version.referencesText)) {
     issues.push({ code: "REFERENCES_REQUIRED", message: "Rujukan kursus wajib dilengkapkan." });
   }
+
+  issues.push(
+    ...validateGovernanceFields({
+      futureReadyElements: version.futureReadyElements,
+      excelFramework: version.excelFramework,
+      sdgTags: version.sdgTags,
+      facultyApprovalDate: version.facultyApprovalDate,
+      senateApprovalDate: version.senateApprovalDate,
+    })
+  );
 
   return issues;
 }
