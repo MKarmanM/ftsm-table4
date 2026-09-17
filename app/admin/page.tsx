@@ -64,7 +64,7 @@ export default async function AdminPage() {
               href="/admin/programmes"
               className="text-sm font-medium text-primary hover:underline"
             >
-              Urus PLO &amp; lihat semua ({allProgrammes.length}) &rarr;
+              Lihat semua ({allProgrammes.length}) &rarr;
             </Link>
           </div>
           {programmes.length === 0 ? (
