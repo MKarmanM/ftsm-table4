@@ -37,7 +37,6 @@ export async function applyReviewAction(params: {
       const version = await tx.proformaVersion.findUniqueOrThrow({
         where: { id: versionId },
         include: {
-          course: { select: { creditHours: true } },
           topics: { select: { hours: true } },
           assessments: { select: { hours: true } },
         },
@@ -59,6 +58,8 @@ export async function applyReviewAction(params: {
           ? { publishedAt: new Date(), senateApprovalDate: new Date() }
           : {};
 
+      let derivedCreditHours: number | null = null;
+
       if (nextStatus === ProformaStatus.PUBLISHED) {
         const slt = computeSltSummary(
           version.topics.map((topic) => ({ hours: normalizeHours(topic.hours) })),
@@ -67,12 +68,14 @@ export async function applyReviewAction(params: {
           })),
           version.isIndustrialTraining50Elt
         );
-        const expectedCreditHours = Number(version.course.creditHours);
-        if (slt.suggestedCreditHours !== expectedCreditHours) {
+
+        if (slt.suggestedCreditHours <= 0) {
           throw new WorkflowError(
-            `Jumlah SLT (${slt.grandTotal} jam) tidak sepadan dengan ${expectedCreditHours} kredit kursus. Betulkan SLT sebelum menerbitkan.`
+            "Jumlah SLT belum mencukupi untuk menghasilkan nilai kredit. Lengkapkan SLT sebelum menerbitkan."
           );
         }
+
+        derivedCreditHours = slt.suggestedCreditHours;
 
         const currentlyPublished = await tx.proformaVersion.findFirst({
           where: {
@@ -99,6 +102,12 @@ export async function applyReviewAction(params: {
             },
           });
         }
+
+        // Credit is derived from the official SLT formula, never entered by a user.
+        await tx.course.update({
+          where: { id: version.courseId },
+          data: { creditHours: derivedCreditHours },
+        });
       }
 
       const updated = await tx.proformaVersion.update({
@@ -117,7 +126,11 @@ export async function applyReviewAction(params: {
           action: type,
           entityType: "ProformaVersion",
           entityId: versionId,
-          metadata: { from: version.status, to: nextStatus },
+          metadata: {
+            from: version.status,
+            to: nextStatus,
+            ...(derivedCreditHours !== null ? { derivedCreditHours } : {}),
+          },
         },
       });
 
