@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getVersionDetail } from "@/lib/proforma-detail";
 import { getTable4Detail, computeSltSummary, computeGroupTotal } from "@/lib/table4-detail";
+import { computeTable4Completion } from "@/lib/table4-completion";
 import { getAllowedActions } from "@/lib/workflow-constants";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageDraft, canViewDraft, filterActionsByPermission } from "@/lib/permissions";
@@ -14,6 +15,7 @@ import { CloEditor } from "@/components/table4-clo-editor";
 import { TopicsEditor } from "@/components/table4-topics-editor";
 import { AssessmentsEditor } from "@/components/table4-assessments-editor";
 import { GuidanceBox } from "@/components/table4-guidance-box";
+import { Table4SectionNav } from "@/components/table4-section-nav";
 import { ExportMenu } from "@/components/export-menu";
 import { buttonVariants } from "@/components/ui/button";
 import { ROLE_LABEL } from "@/lib/roles";
@@ -39,9 +41,7 @@ export default async function VersionDetailPage({
     getTable4Detail(versionId),
   ]);
 
-  if (!version || !currentUser || !table4) {
-    notFound();
-  }
+  if (!version || !currentUser || !table4) notFound();
 
   const courseContext = {
     id: version.course.id,
@@ -66,9 +66,9 @@ export default async function VersionDetailPage({
     table4.assessments,
     table4.isIndustrialTraining50Elt
   );
+  const completion = computeTable4Completion(table4);
 
   const recentHistory = version.reviewActions.slice(0, RECENT_HISTORY_LIMIT);
-
   const continuousItems = table4.assessments.filter((a) => a.phase === "CONTINUOUS");
   const finalItems = table4.assessments.filter((a) => a.phase === "FINAL");
   const topicsSubtotal = computeGroupTotal(table4.topics);
@@ -85,8 +85,6 @@ export default async function VersionDetailPage({
           &larr; Kembali ke Sejarah Versi
         </Link>
 
-        {/* Header hierarchy: small course code -> big title -> status
-            badge + version metadata, actions on the right. */}
         <header className="mt-3 mb-6 flex flex-wrap items-start justify-between gap-4 border-b border-border pb-5">
           <div>
             <p className="text-xs font-medium tracking-wide text-secondary uppercase">
@@ -114,10 +112,48 @@ export default async function VersionDetailPage({
 
         <GuidanceBox />
 
+        <Table4SectionNav
+          percentage={completion.percentage}
+          sections={completion.sections}
+        />
+
+        <div className="mb-6 rounded-md border border-border bg-card p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="font-semibold text-foreground">
+                Kelengkapan Table 4: {completion.percentage}%
+              </p>
+              <p className="text-sm text-secondary">
+                {completion.completeCount} daripada {completion.totalSections} bahagian utama lengkap.
+              </p>
+            </div>
+            <p className="text-sm font-medium text-foreground">
+              Wajaran penilaian: {completion.assessmentTotal.toFixed(2)}%
+            </p>
+          </div>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+            {completion.sections.map((section) => (
+              <a
+                key={section.key}
+                href={`#${section.key}`}
+                className="rounded-md border border-border px-3 py-2 hover:bg-muted/30"
+              >
+                <p className="text-sm font-medium text-foreground">
+                  {section.complete ? "✓" : "⚠"} {section.label}
+                </p>
+                {!section.complete && (
+                  <p className="mt-1 text-xs leading-relaxed text-secondary">
+                    {section.hint}
+                  </p>
+                )}
+              </a>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-1 gap-8 md:grid-cols-[3fr_1fr]">
-          {/* Main content — primary visual focus */}
           <div className="min-w-0 space-y-8">
-            <section>
+            <section id="basic" className="scroll-mt-28">
               <h2 className="mb-4 text-base font-semibold text-foreground">
                 <span className="italic text-primary">Basic Information</span>
                 /Maklumat Asas
@@ -131,11 +167,9 @@ export default async function VersionDetailPage({
               />
             </section>
 
-            <section>
+            <section id="clo" className="scroll-mt-28">
               <h2 className="mb-1 text-base font-semibold text-foreground">
-                <span className="italic text-primary">
-                  Course Learning Outcomes (CLO)
-                </span>
+                <span className="italic text-primary">Course Learning Outcomes (CLO)</span>
                 /Hasil Pembelajaran Kursus (HPK)
               </h2>
               <p className="mb-4 text-xs text-secondary">
@@ -153,18 +187,13 @@ export default async function VersionDetailPage({
               />
             </section>
 
-            <section>
+            <section id="slt" className="scroll-mt-28">
               <h2 className="mb-1 text-base font-semibold text-foreground">
-                <span className="italic text-primary">
-                  Distribution of Student Learning Time (SLT)
-                </span>
+                <span className="italic text-primary">Distribution of Student Learning Time (SLT)</span>
                 /Agihan Masa Pembelajaran Pelajar (SLT)
               </h2>
               <p className="mb-4 text-xs text-secondary">
-                Jumlah SLT: {slt.grandTotal} jam &middot; F2F Fizikal:{" "}
-                {slt.pctF2fPhysical}% &middot; Online + Kendiri:{" "}
-                {slt.pctOnlineIndependent}% &middot; Praktikal:{" "}
-                {slt.pctPractical}%
+                Jumlah SLT: {slt.grandTotal} jam &middot; F2F Fizikal: {slt.pctF2fPhysical}% &middot; Online + Kendiri: {slt.pctOnlineIndependent}% &middot; Praktikal: {slt.pctPractical}%
               </p>
               <TopicsEditor
                 versionId={version.id}
@@ -178,7 +207,7 @@ export default async function VersionDetailPage({
               </p>
             </section>
 
-            <section>
+            <section id="assessment" className="scroll-mt-28">
               <h2 className="mb-4 text-base font-semibold text-foreground">
                 <span className="italic text-primary">Continuous Assessment</span>
                 /Penilaian Berterusan
@@ -195,7 +224,7 @@ export default async function VersionDetailPage({
               </p>
             </section>
 
-            <section>
+            <section id="assessment-final" className="scroll-mt-28">
               <h2 className="mb-4 text-base font-semibold text-foreground">
                 <span className="italic text-primary">Final Assessment</span>
                 /Penilaian Akhir
@@ -212,7 +241,7 @@ export default async function VersionDetailPage({
               </p>
             </section>
 
-            <section>
+            <section id="other" className="scroll-mt-28">
               <h2 className="mb-4 text-base font-semibold text-foreground">
                 <span className="italic text-primary">Other Information</span>
                 /Maklumat Lain
@@ -225,32 +254,26 @@ export default async function VersionDetailPage({
               />
             </section>
 
-            <section className="rounded-md border border-primary/20 bg-primary/5 p-5">
-              <h2 className="mb-4 text-base font-semibold text-foreground">
-                Tindakan
-              </h2>
+            <section id="review" className="scroll-mt-28 rounded-md border border-primary/20 bg-primary/5 p-5">
+              <h2 className="mb-4 text-base font-semibold text-foreground">Tindakan / Review</h2>
               <ReviewActionButtons
                 versionId={version.id}
                 courseId={version.course.id}
                 allowedActions={permittedActions}
                 hasStatusActionsButNoPermission={
-                  statusAllowedActions.length > 0 &&
-                  permittedActions.length === 0
+                  statusAllowedActions.length > 0 && permittedActions.length === 0
                 }
               />
             </section>
           </div>
 
-          {/* Sidebar — secondary information, lighter visual weight */}
           <aside className="min-w-0 space-y-6 text-sm">
             <div>
               <p className="mb-2 text-xs font-semibold tracking-wide text-secondary uppercase">
                 Sejarah Semakan
               </p>
               {version.reviewActions.length === 0 ? (
-                <p className="text-sm text-secondary italic">
-                  Belum ada tindakan direkodkan.
-                </p>
+                <p className="text-sm text-secondary italic">Belum ada tindakan direkodkan.</p>
               ) : (
                 <ul className="space-y-2.5">
                   {recentHistory.map((action) => (
@@ -269,9 +292,7 @@ export default async function VersionDetailPage({
                         </span>
                       </div>
                       <p className="text-sm text-secondary">{action.type}</p>
-                      {action.note && (
-                        <p className="mt-0.5 text-sm text-foreground">{action.note}</p>
-                      )}
+                      {action.note && <p className="mt-0.5 text-sm text-foreground">{action.note}</p>}
                     </li>
                   ))}
                 </ul>
@@ -298,9 +319,7 @@ export default async function VersionDetailPage({
                           </span>
                         </div>
                         <p className="text-sm text-secondary">{action.type}</p>
-                        {action.note && (
-                          <p className="mt-0.5 text-sm text-foreground">{action.note}</p>
-                        )}
+                        {action.note && <p className="mt-0.5 text-sm text-foreground">{action.note}</p>}
                       </li>
                     ))}
                   </ul>
@@ -310,7 +329,7 @@ export default async function VersionDetailPage({
 
             <div className="border-t border-border pt-5">
               <p className="mb-2 text-xs font-semibold tracking-wide text-secondary uppercase">
-                Komen
+                Komen Mengikut Bahagian
               </p>
               <CommentThread
                 versionId={version.id}
@@ -325,9 +344,7 @@ export default async function VersionDetailPage({
                   Log Audit
                 </summary>
                 {auditEvents.length === 0 ? (
-                  <p className="mt-2 text-sm text-secondary italic">
-                    Belum ada log direkodkan.
-                  </p>
+                  <p className="mt-2 text-sm text-secondary italic">Belum ada log direkodkan.</p>
                 ) : (
                   <ul className="mt-2 space-y-1.5">
                     {auditEvents.map((e) => (

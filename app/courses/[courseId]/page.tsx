@@ -3,31 +3,35 @@ import { notFound } from "next/navigation";
 import { getCourseVersionHistory } from "@/lib/course-history";
 import { StatusBadge } from "@/components/status-badge";
 import { getCurrentUser } from "@/lib/auth";
-import { canViewDraft } from "@/lib/permissions";
+import { canManageDraft, canViewDraft } from "@/lib/permissions";
+import { copyPreviousVersionAction } from "@/app/actions/proforma";
+import { buttonVariants } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
 export default async function CourseHistoryPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ courseId: string }>;
+  searchParams: Promise<{ copyError?: string }>;
 }) {
   const { courseId } = await params;
+  const query = await searchParams;
   const [data, currentUser] = await Promise.all([
     getCourseVersionHistory(courseId),
     getCurrentUser(),
   ]);
 
-  if (
-    !data ||
-    !currentUser ||
-    !canViewDraft(currentUser, {
-      id: data.course.id,
-      programmeId: data.course.programme.id,
-    })
-  ) {
-    notFound();
-  }
+  if (!data || !currentUser) notFound();
+
+  const courseContext = {
+    id: data.course.id,
+    programmeId: data.course.programme.id,
+  };
+
+  if (!canViewDraft(currentUser, courseContext)) notFound();
+  const canCopy = canManageDraft(currentUser, courseContext);
 
   return (
     <div className="w-full px-8 py-10">
@@ -50,29 +54,63 @@ export default async function CourseHistoryPage({
         </p>
       </header>
 
+      {query.copyError && (
+        <div className="mb-4 rounded-md border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive">
+          Versi tidak dapat disalin. Sila cuba semula.
+        </div>
+      )}
+
+      {canCopy && data.versions.length > 0 && (
+        <div className="mb-5 rounded-md border border-primary/20 bg-primary/5 px-4 py-3 text-sm text-foreground">
+          <p className="font-medium">Copy Previous Version</p>
+          <p className="mt-1 text-muted-foreground">
+            Gunakan versi terdahulu sebagai asas draf baharu. Sejarah semakan,
+            komen dan tarikh kelulusan tidak akan disalin.
+          </p>
+        </div>
+      )}
+
       {data.versions.length === 0 ? (
         <p className="text-sm text-muted-foreground italic">
           Belum ada draf dicipta untuk kursus ini.
         </p>
       ) : (
-        <ul className="space-y-2">
+        <ul className="space-y-3">
           {data.versions.map((v) => (
-            <li key={v.id}>
-              <Link
-                href={`/courses/${courseId}/versions/${v.id}`}
-                className="flex items-center justify-between rounded-md border border-border px-4 py-3 text-sm hover:bg-muted/30"
-              >
-                <div className="flex items-center gap-3">
-                  <span className="font-medium text-foreground">
-                    Versi {v.versionNo}
-                  </span>
-                  <StatusBadge status={v.status} />
-                </div>
-                <div className="text-right text-xs text-muted-foreground">
-                  <p>Dicipta oleh {v.createdByName}</p>
-                  <p>{v.createdAt.toLocaleDateString("ms-MY")}</p>
-                </div>
-              </Link>
+            <li
+              key={v.id}
+              className="rounded-md border border-border px-4 py-3 text-sm"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <Link
+                  href={`/courses/${courseId}/versions/${v.id}`}
+                  className="min-w-0 flex-1 hover:opacity-80"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-foreground">
+                      Versi {v.versionNo}
+                    </span>
+                    <StatusBadge status={v.status} />
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    Dicipta oleh {v.createdByName} &middot;{" "}
+                    {v.createdAt.toLocaleDateString("ms-MY")}
+                  </div>
+                </Link>
+
+                {canCopy && (
+                  <form action={copyPreviousVersionAction}>
+                    <input type="hidden" name="courseId" value={courseId} />
+                    <input type="hidden" name="sourceVersionId" value={v.id} />
+                    <button
+                      type="submit"
+                      className={buttonVariants({ variant: "outline", size: "sm" })}
+                    >
+                      Salin Versi Ini
+                    </button>
+                  </form>
+                )}
+              </div>
             </li>
           ))}
         </ul>

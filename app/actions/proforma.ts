@@ -1,12 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { createDraftVersion } from "@/lib/proforma-version";
+import { createDraftVersion, copyDraftVersion } from "@/lib/proforma-version";
 import { applyReviewAction } from "@/lib/proforma-workflow";
 import { canManageDraft, canViewDraft, isActionPermitted } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { Prisma, ReviewActionType } from "@/lib/generated/prisma/client";
+import { REVIEW_COMMENT_SECTION_KEYS } from "@/lib/review-comment-sections";
 
 const PERMISSION_DENIED_MESSAGE =
   "Anda tidak mempunyai kebenaran untuk tindakan ini.";
@@ -39,6 +41,40 @@ export async function createDraftAction(
 
   revalidatePath("/");
   return {};
+}
+
+export async function copyPreviousVersionAction(formData: FormData): Promise<void> {
+  const currentUser = await getCurrentUser();
+  if (!currentUser) redirect("/login");
+
+  const courseId = String(formData.get("courseId") ?? "");
+  const sourceVersionId = String(formData.get("sourceVersionId") ?? "");
+  if (!courseId || !sourceVersionId) redirect(`/courses/${courseId}`);
+
+  const course = await prisma.course.findUnique({
+    where: { id: courseId },
+    select: { id: true, programmeId: true },
+  });
+  if (!course || !canManageDraft(currentUser, course)) {
+    redirect(`/courses/${courseId}`);
+  }
+
+  let draftId: string;
+  try {
+    const draft = await copyDraftVersion({
+      sourceVersionId,
+      courseId,
+      createdById: currentUser.id,
+    });
+    draftId = draft.id;
+  } catch (err) {
+    console.error("copyPreviousVersionAction failed:", err);
+    redirect(`/courses/${courseId}?copyError=1`);
+  }
+
+  revalidatePath(`/courses/${courseId}`);
+  revalidatePath("/");
+  redirect(`/courses/${courseId}/versions/${draftId}`);
 }
 
 export type SavePayloadState = { error?: string; success?: boolean };
@@ -125,8 +161,6 @@ export async function reviewActionFormAction(
     return { error: PERMISSION_DENIED_MESSAGE };
   }
 
-  // Separation of duties: even when a user carries multiple roles, the
-  // person who created the draft must not approve that same version.
   if (type === "APPROVE" && version.createdById === currentUser.id) {
     return { error: "Pencipta draf tidak dibenarkan meluluskan versi Table 4 yang sama." };
   }
@@ -163,6 +197,9 @@ export async function createCommentAction(
 
   if (!versionId || !body) return { error: "Komen tidak boleh kosong." };
   if (body.length > 2000) return { error: "Komen terlalu panjang (maksimum 2000 aksara)." };
+  if (sectionKey && !REVIEW_COMMENT_SECTION_KEYS.has(sectionKey)) {
+    return { error: "Bahagian komen tidak sah." };
+  }
 
   const version = await prisma.proformaVersion.findUnique({
     where: { id: versionId },
