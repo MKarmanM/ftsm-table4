@@ -18,39 +18,23 @@ export async function createDraftAction(
   formData: FormData
 ): Promise<CreateDraftState> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) {
-    return { error: "Sesi telah tamat. Sila log masuk semula." };
-  }
+  if (!currentUser) return { error: "Sesi telah tamat. Sila log masuk semula." };
 
   const courseId = String(formData.get("courseId") ?? "");
-  if (!courseId) {
-    return { error: "Kursus tidak sah." };
-  }
+  if (!courseId) return { error: "Kursus tidak sah." };
 
   const course = await prisma.course.findUnique({
     where: { id: courseId },
     select: { id: true, programmeId: true },
   });
-  if (!course) {
-    return { error: "Kursus tidak dijumpai." };
-  }
-
-  if (!canManageDraft(currentUser, course)) {
-    return { error: PERMISSION_DENIED_MESSAGE };
-  }
+  if (!course) return { error: "Kursus tidak dijumpai." };
+  if (!canManageDraft(currentUser, course)) return { error: PERMISSION_DENIED_MESSAGE };
 
   try {
-    await createDraftVersion({
-      courseId,
-      createdById: currentUser.id,
-      payload: {},
-    });
+    await createDraftVersion({ courseId, createdById: currentUser.id, payload: {} });
   } catch (err) {
     console.error("createDraftAction failed:", err);
-    return {
-      error:
-        "Gagal mencipta draf. Sila cuba lagi, atau hubungi Pegawai Akademik jika berterusan.",
-    };
+    return { error: "Gagal mencipta draf. Sila cuba lagi, atau hubungi Pegawai Akademik jika berterusan." };
   }
 
   revalidatePath("/");
@@ -64,38 +48,21 @@ export async function savePayloadAction(
   formData: FormData
 ): Promise<SavePayloadState> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) {
-    return { error: "Sesi telah tamat. Sila log masuk semula." };
-  }
+  if (!currentUser) return { error: "Sesi telah tamat. Sila log masuk semula." };
 
   const versionId = String(formData.get("versionId") ?? "");
   const courseId = String(formData.get("courseId") ?? "");
   const payloadRaw = String(formData.get("payload") ?? "");
-
-  if (!versionId) {
-    return { error: "Versi tidak sah." };
-  }
+  if (!versionId) return { error: "Versi tidak sah." };
 
   const version = await prisma.proformaVersion.findUnique({
     where: { id: versionId },
-    select: {
-      status: true,
-      course: { select: { id: true, programmeId: true } },
-    },
+    select: { status: true, course: { select: { id: true, programmeId: true } } },
   });
-  if (!version) {
-    return { error: "Versi tidak dijumpai." };
-  }
-
-  if (!canManageDraft(currentUser, version.course)) {
-    return { error: PERMISSION_DENIED_MESSAGE };
-  }
-
+  if (!version) return { error: "Versi tidak dijumpai." };
+  if (!canManageDraft(currentUser, version.course)) return { error: PERMISSION_DENIED_MESSAGE };
   if (version.status !== "DRAFT") {
-    return {
-      error:
-        "Draf ini tidak lagi berstatus DRAFT — kandungan tidak boleh diedit.",
-    };
+    return { error: "Draf ini tidak lagi berstatus DRAFT — kandungan tidak boleh diedit." };
   }
 
   let payload: unknown;
@@ -137,31 +104,31 @@ export async function reviewActionFormAction(
   formData: FormData
 ): Promise<ReviewActionFormState> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) {
-    return { error: "Sesi telah tamat. Sila log masuk semula." };
-  }
+  if (!currentUser) return { error: "Sesi telah tamat. Sila log masuk semula." };
 
   const versionId = String(formData.get("versionId") ?? "");
   const courseId = String(formData.get("courseId") ?? "");
   const type = String(formData.get("type") ?? "") as ReviewActionType;
   const noteRaw = String(formData.get("note") ?? "").trim();
-
-  if (!versionId || !type) {
-    return { error: "Data tidak lengkap." };
-  }
+  if (!versionId || !type) return { error: "Data tidak lengkap." };
 
   const version = await prisma.proformaVersion.findUnique({
     where: { id: versionId },
     select: {
+      createdById: true,
       course: { select: { id: true, programmeId: true } },
     },
   });
-  if (!version) {
-    return { error: "Versi tidak dijumpai." };
-  }
+  if (!version) return { error: "Versi tidak dijumpai." };
 
   if (!isActionPermitted(currentUser, type, version.course)) {
     return { error: PERMISSION_DENIED_MESSAGE };
+  }
+
+  // Separation of duties: even when a user carries multiple roles, the
+  // person who created the draft must not approve that same version.
+  if (type === "APPROVE" && version.createdById === currentUser.id) {
+    return { error: "Pencipta draf tidak dibenarkan meluluskan versi Table 4 yang sama." };
   }
 
   try {
@@ -172,9 +139,7 @@ export async function reviewActionFormAction(
       note: noteRaw || undefined,
     });
   } catch (err) {
-    return {
-      error: err instanceof Error ? err.message : "Tindakan gagal.",
-    };
+    return { error: err instanceof Error ? err.message : "Tindakan gagal." };
   }
 
   revalidatePath(`/courses/${courseId}/versions/${versionId}`);
@@ -189,21 +154,15 @@ export async function createCommentAction(
   formData: FormData
 ): Promise<CreateCommentState> {
   const currentUser = await getCurrentUser();
-  if (!currentUser) {
-    return { error: "Sesi telah tamat. Sila log masuk semula." };
-  }
+  if (!currentUser) return { error: "Sesi telah tamat. Sila log masuk semula." };
 
   const versionId = String(formData.get("versionId") ?? "");
   const courseId = String(formData.get("courseId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
   const sectionKey = String(formData.get("sectionKey") ?? "").trim();
 
-  if (!versionId || !body) {
-    return { error: "Komen tidak boleh kosong." };
-  }
-  if (body.length > 2000) {
-    return { error: "Komen terlalu panjang (maksimum 2000 aksara)." };
-  }
+  if (!versionId || !body) return { error: "Komen tidak boleh kosong." };
+  if (body.length > 2000) return { error: "Komen terlalu panjang (maksimum 2000 aksara)." };
 
   const version = await prisma.proformaVersion.findUnique({
     where: { id: versionId },
