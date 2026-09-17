@@ -1,1 +1,44 @@
-# placeholder
+# Sistem Pengurusan Proforma Kursus (Table 4)
+
+Aplikasi FTSM UKM untuk mengurus kitaran proforma kursus: draf, semakan,
+kelulusan, penerbitan, CLO/PLO, SLT, penilaian dan eksport Word/Excel.
+
+## Keperluan
+
+- Node.js 20.19 atau lebih baharu (Node 22 LTS disyorkan)
+- PostgreSQL
+- URL sambungan PostgreSQL ber-pooling untuk deployment serverless
+
+## Persediaan tempatan
+
+```bash
+npm install
+cp .env.example .env
+npx prisma migrate dev
+npm run db:seed
+npm run dev
+```
+
+Isi `DATABASE_URL`, `SESSION_SECRET` dan `RESET_TOKEN_SECRET` dalam `.env`.
+`SESSION_SECRET` dan `RESET_TOKEN_SECRET` mesti dua nilai rawak yang berbeza.
+
+## Semakan kualiti
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+Prisma Client dijana secara automatik melalui skrip `postinstall`.
+
+## Deployment
+
+Untuk Vercel atau platform serverless, gunakan URL pooler PostgreSQL sebagai
+`DATABASE_URL` (contohnya pooler yang disediakan oleh Neon, Supabase atau
+PgBouncer). Sambungan terus ke pangkalan data boleh menghabiskan had
+`max_connections` apabila beberapa instance berjalan serentak.
+
+Tetapkan juga `APP_URL`, konfigurasi `SMTP_*`, `EMAIL_FROM`, dan kedua-dua
+secret dalam persekitaran production. Jangan commit fail `.env` sebenar.
