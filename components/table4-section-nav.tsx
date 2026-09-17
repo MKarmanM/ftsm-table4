@@ -6,7 +6,7 @@ const NAV_ITEMS = [
   { key: "slt", href: "#slt", label: "3 SLT" },
   { key: "assessment", href: "#assessment", label: "4 Penilaian" },
   { key: "other", href: "#other", label: "5 Maklumat Lain" },
-  { key: "review", href: "#review", label: "6 Review" },
+  { key: "review", href: "#review", label: "6 Semakan" },
 ];
 
 export function Table4SectionNav({

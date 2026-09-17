@@ -16,6 +16,7 @@ import { TopicsEditor } from "@/components/table4-topics-editor";
 import { AssessmentsEditor } from "@/components/table4-assessments-editor";
 import { GuidanceBox } from "@/components/table4-guidance-box";
 import { Table4SectionNav } from "@/components/table4-section-nav";
+import { WorkflowStepper } from "@/components/workflow-stepper";
 import { ExportMenu } from "@/components/export-menu";
 import { buttonVariants } from "@/components/ui/button";
 import { ROLE_LABEL } from "@/lib/roles";
@@ -58,8 +59,7 @@ export default async function VersionDetailPage({
     statusAllowedActions,
     courseContext
   );
-  const isEditable =
-    version.status === "DRAFT" && canManageDraft(currentUser, courseContext);
+  const isEditable = version.status === "DRAFT" && canManageDraft(currentUser, courseContext);
 
   const slt = computeSltSummary(
     table4.topics,
@@ -110,12 +110,10 @@ export default async function VersionDetailPage({
           </div>
         </header>
 
+        <WorkflowStepper status={version.status} />
         <GuidanceBox />
 
-        <Table4SectionNav
-          percentage={completion.percentage}
-          sections={completion.sections}
-        />
+        <Table4SectionNav percentage={completion.percentage} sections={completion.sections} />
 
         <div className="mb-6 rounded-md border border-border bg-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -142,21 +140,18 @@ export default async function VersionDetailPage({
                   {section.complete ? "✓" : "⚠"} {section.label}
                 </p>
                 {!section.complete && (
-                  <p className="mt-1 text-xs leading-relaxed text-secondary">
-                    {section.hint}
-                  </p>
+                  <p className="mt-1 text-xs leading-relaxed text-secondary">{section.hint}</p>
                 )}
               </a>
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-8 md:grid-cols-[3fr_1fr]">
+        <div className="grid grid-cols-1 gap-8 md:grid-cols-[3fr_minmax(300px,1fr)]">
           <div className="min-w-0 space-y-8">
             <section id="basic" className="scroll-mt-28">
               <h2 className="mb-4 text-base font-semibold text-foreground">
-                <span className="italic text-primary">Basic Information</span>
-                /Maklumat Asas
+                <span className="italic text-primary">Basic Information</span>/Maklumat Asas
               </h2>
               <BasicInfoFormPart1
                 versionId={version.id}
@@ -169,14 +164,12 @@ export default async function VersionDetailPage({
 
             <section id="clo" className="scroll-mt-28">
               <h2 className="mb-1 text-base font-semibold text-foreground">
-                <span className="italic text-primary">Course Learning Outcomes (CLO)</span>
-                /Hasil Pembelajaran Kursus (HPK)
+                <span className="italic text-primary">Course Learning Outcomes (CLO)</span>/Hasil Pembelajaran Kursus (HPK)
               </h2>
               <p className="mb-4 text-xs text-secondary">
                 <span className="italic text-primary">
                   Mapping to Programme Learning Outcomes (PLO), Teaching &amp; Assessment Methods
-                </span>
-                /Pemetaan HPP, Kaedah Penyampaian dan Kaedah Penilaian
+                </span>/Pemetaan HPP, Kaedah Penyampaian dan Kaedah Penilaian
               </p>
               <CloEditor
                 versionId={version.id}
@@ -189,8 +182,7 @@ export default async function VersionDetailPage({
 
             <section id="slt" className="scroll-mt-28">
               <h2 className="mb-1 text-base font-semibold text-foreground">
-                <span className="italic text-primary">Distribution of Student Learning Time (SLT)</span>
-                /Agihan Masa Pembelajaran Pelajar (SLT)
+                <span className="italic text-primary">Distribution of Student Learning Time (SLT)</span>/Agihan Masa Pembelajaran Pelajar (SLT)
               </h2>
               <p className="mb-4 text-xs text-secondary">
                 Jumlah SLT: {slt.grandTotal} jam &middot; F2F Fizikal: {slt.pctF2fPhysical}% &middot; Online + Kendiri: {slt.pctOnlineIndependent}% &middot; Praktikal: {slt.pctPractical}%
@@ -209,8 +201,7 @@ export default async function VersionDetailPage({
 
             <section id="assessment" className="scroll-mt-28">
               <h2 className="mb-4 text-base font-semibold text-foreground">
-                <span className="italic text-primary">Continuous Assessment</span>
-                /Penilaian Berterusan
+                <span className="italic text-primary">Continuous Assessment</span>/Penilaian Berterusan
               </h2>
               <AssessmentsEditor
                 versionId={version.id}
@@ -226,8 +217,7 @@ export default async function VersionDetailPage({
 
             <section id="assessment-final" className="scroll-mt-28">
               <h2 className="mb-4 text-base font-semibold text-foreground">
-                <span className="italic text-primary">Final Assessment</span>
-                /Penilaian Akhir
+                <span className="italic text-primary">Final Assessment</span>/Penilaian Akhir
               </h2>
               <AssessmentsEditor
                 versionId={version.id}
@@ -243,8 +233,7 @@ export default async function VersionDetailPage({
 
             <section id="other" className="scroll-mt-28">
               <h2 className="mb-4 text-base font-semibold text-foreground">
-                <span className="italic text-primary">Other Information</span>
-                /Maklumat Lain
+                <span className="italic text-primary">Other Information</span>/Maklumat Lain
               </h2>
               <BasicInfoFormPart2
                 versionId={version.id}
@@ -255,23 +244,19 @@ export default async function VersionDetailPage({
             </section>
 
             <section id="review" className="scroll-mt-28 rounded-md border border-primary/20 bg-primary/5 p-5">
-              <h2 className="mb-4 text-base font-semibold text-foreground">Tindakan / Review</h2>
+              <h2 className="mb-4 text-base font-semibold text-foreground">Tindakan Semakan</h2>
               <ReviewActionButtons
                 versionId={version.id}
                 courseId={version.course.id}
                 allowedActions={permittedActions}
-                hasStatusActionsButNoPermission={
-                  statusAllowedActions.length > 0 && permittedActions.length === 0
-                }
+                hasStatusActionsButNoPermission={statusAllowedActions.length > 0 && permittedActions.length === 0}
               />
             </section>
           </div>
 
           <aside className="min-w-0 space-y-6 text-sm">
             <div>
-              <p className="mb-2 text-xs font-semibold tracking-wide text-secondary uppercase">
-                Sejarah Semakan
-              </p>
+              <p className="mb-2 text-xs font-semibold tracking-wide text-secondary uppercase">Sejarah Semakan</p>
               {version.reviewActions.length === 0 ? (
                 <p className="text-sm text-secondary italic">Belum ada tindakan direkodkan.</p>
               ) : (
@@ -282,14 +267,10 @@ export default async function VersionDetailPage({
                         <span className="text-sm font-medium text-foreground">
                           {action.actorName}
                           {action.actorRoles.length > 0 && (
-                            <span className="ml-1 font-normal text-secondary">
-                              ({actorRoleLabel(action.actorRoles)})
-                            </span>
+                            <span className="ml-1 font-normal text-secondary">({actorRoleLabel(action.actorRoles)})</span>
                           )}
                         </span>
-                        <span className="text-xs text-secondary">
-                          {action.createdAt.toLocaleDateString("ms-MY")}
-                        </span>
+                        <span className="text-xs text-secondary">{action.createdAt.toLocaleDateString("ms-MY")}</span>
                       </div>
                       <p className="text-sm text-secondary">{action.type}</p>
                       {action.note && <p className="mt-0.5 text-sm text-foreground">{action.note}</p>}
@@ -309,14 +290,10 @@ export default async function VersionDetailPage({
                           <span className="text-sm font-medium text-foreground">
                             {action.actorName}
                             {action.actorRoles.length > 0 && (
-                              <span className="ml-1 font-normal text-secondary">
-                                ({actorRoleLabel(action.actorRoles)})
-                              </span>
+                              <span className="ml-1 font-normal text-secondary">({actorRoleLabel(action.actorRoles)})</span>
                             )}
                           </span>
-                          <span className="text-xs text-secondary">
-                            {action.createdAt.toLocaleDateString("ms-MY")}
-                          </span>
+                          <span className="text-xs text-secondary">{action.createdAt.toLocaleDateString("ms-MY")}</span>
                         </div>
                         <p className="text-sm text-secondary">{action.type}</p>
                         {action.note && <p className="mt-0.5 text-sm text-foreground">{action.note}</p>}
@@ -328,21 +305,13 @@ export default async function VersionDetailPage({
             </div>
 
             <div className="border-t border-border pt-5">
-              <p className="mb-2 text-xs font-semibold tracking-wide text-secondary uppercase">
-                Komen Mengikut Bahagian
-              </p>
-              <CommentThread
-                versionId={version.id}
-                courseId={version.course.id}
-                comments={version.comments}
-              />
+              <p className="mb-2 text-xs font-semibold tracking-wide text-secondary uppercase">Komen Mengikut Bahagian</p>
+              <CommentThread versionId={version.id} courseId={version.course.id} comments={version.comments} />
             </div>
 
             <div className="border-t border-border pt-5">
               <details>
-                <summary className="cursor-pointer text-xs font-semibold tracking-wide text-secondary uppercase">
-                  Log Audit
-                </summary>
+                <summary className="cursor-pointer text-xs font-semibold tracking-wide text-secondary uppercase">Log Audit</summary>
                 {auditEvents.length === 0 ? (
                   <p className="mt-2 text-sm text-secondary italic">Belum ada log direkodkan.</p>
                 ) : (
@@ -351,9 +320,7 @@ export default async function VersionDetailPage({
                       <li key={e.id} className="border-b border-border pb-1.5 text-xs last:border-0">
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-medium text-foreground">{e.actorName}</span>
-                          <span className="whitespace-nowrap text-secondary">
-                            {e.createdAt.toLocaleDateString("ms-MY")}
-                          </span>
+                          <span className="whitespace-nowrap text-secondary">{e.createdAt.toLocaleDateString("ms-MY")}</span>
                         </div>
                         <span className="text-secondary">{e.action}</span>
                       </li>
