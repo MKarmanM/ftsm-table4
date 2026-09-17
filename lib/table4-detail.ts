@@ -107,14 +107,11 @@ export async function getTable4Detail(versionId: string) {
         orderIndex: t.orderIndex,
         topicMs: t.topicMs,
         topicEn: t.topicEn,
-        // UI compatibility: existing editor supports one CLO selector today.
-        // Source of truth is relational; fall back to legacy value only while
-        // old databases are being migrated.
+        mappedCloIds: mappedClos.map((c) => c.id),
         cloRef:
           mappedClos.length > 0
             ? mappedClos.map((c) => `CLO${c.orderIndex}`).join(", ")
             : t.cloRef,
-        mappedCloIds: mappedClos.map((c) => c.id),
         hours: normalizeHours(t.hours),
       };
     }),
@@ -142,6 +139,9 @@ export function computeGroupTotal(rows: { hours: HoursBreakdown }[]): number {
   return total;
 }
 
+// SLT percentages and credit are derived values; users never key in the
+// official credit value manually. When a version is published, the derived
+// credit is persisted to Course.creditHours for catalog/reporting display.
 export function computeSltSummary(
   topics: { hours: HoursBreakdown }[],
   assessments: { hours: HoursBreakdown }[],
@@ -163,6 +163,9 @@ export function computeSltSummary(
   const pct = (n: number) =>
     grandTotal > 0 ? Math.round((n / grandTotal) * 10000) / 100 : 0;
 
+  // Official Table 4 formula (item 5, Nilai Kredit):
+  // normal course: INT(total SLT / 40)
+  // Industrial Training/Clinical Placement with 50% ELT: INT(total SLT / 80)
   const suggestedCreditHours = Math.floor(
     grandTotal / (isIndustrialTraining50Elt ? 80 : 40)
   );
