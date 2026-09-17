@@ -1,7 +1,8 @@
+import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageCatalog } from "@/lib/permissions";
-import { getRecentAuditEvents } from "@/lib/audit";
+import { getAuditActionSummary, getRecentAuditEvents } from "@/lib/audit";
 import { SearchBox } from "@/components/search-box";
 
 export const dynamic = "force-dynamic";
@@ -15,20 +16,24 @@ const ACTION_LABEL: Record<string, string> = {
   REOPEN_DRAFT: "Membuka semula sebagai draf",
   UPDATE_PAYLOAD: "Mengemaskini kandungan",
   AUTO_SUPERSEDE: "Digantikan secara automatik",
+  COPY_VERSION: "Menyalin versi terdahulu",
 };
 
 export default async function AuditLogPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; action?: string }>;
 }) {
   const currentUser = await getCurrentUser();
   if (!currentUser || !canManageCatalog(currentUser)) {
     notFound();
   }
 
-  const { q } = await searchParams;
-  const events = await getRecentAuditEvents(150, q);
+  const { q, action } = await searchParams;
+  const [events, actionSummary] = await Promise.all([
+    getRecentAuditEvents(150, q, action),
+    getAuditActionSummary(),
+  ]);
 
   return (
     <div className="w-full px-8 py-10">
@@ -40,10 +45,43 @@ export default async function AuditLogPage({
           Log Audit
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Rekod tindakan terkini merentasi sistem &mdash; {events.length}{" "}
-          rekod terbaharu
+          Rekod tindakan merentasi sistem &mdash; {events.length} rekod dipaparkan
         </p>
       </header>
+
+      <section className="mb-6">
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <h2 className="text-sm font-semibold text-foreground">Ringkasan Tindakan</h2>
+          {action && (
+            <Link href="/admin/audit" className="text-xs font-medium text-primary hover:underline">
+              Kosongkan filter
+            </Link>
+          )}
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            href="/admin/audit"
+            className={`rounded-md border px-3 py-2 text-xs ${
+              !action ? "border-primary bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted/40"
+            }`}
+          >
+            Semua
+          </Link>
+          {actionSummary.map((item) => (
+            <Link
+              key={item.action}
+              href={`/admin/audit?action=${encodeURIComponent(item.action)}`}
+              className={`rounded-md border px-3 py-2 text-xs ${
+                action === item.action
+                  ? "border-primary bg-primary/10 text-primary"
+                  : "border-border text-muted-foreground hover:bg-muted/40"
+              }`}
+            >
+              {ACTION_LABEL[item.action] ?? item.action} · {item.count}
+            </Link>
+          ))}
+        </div>
+      </section>
 
       <SearchBox
         placeholder="Cari nama pengguna, tindakan, atau kod kursus..."
@@ -52,7 +90,7 @@ export default async function AuditLogPage({
 
       {events.length === 0 ? (
         <p className="text-sm text-muted-foreground italic">
-          Belum ada log direkodkan.
+          Tiada rekod audit sepadan dengan carian/filter ini.
         </p>
       ) : (
         <div className="overflow-hidden rounded-lg border border-border">
@@ -69,7 +107,7 @@ export default async function AuditLogPage({
               {events.map((e) => (
                 <tr
                   key={e.id}
-                  className="border-b border-border last:border-0"
+                  className="border-b border-border last:border-0 hover:bg-muted/20"
                 >
                   <td className="px-4 py-3 text-xs whitespace-nowrap text-muted-foreground">
                     {e.createdAt.toLocaleString("ms-MY")}
@@ -81,13 +119,17 @@ export default async function AuditLogPage({
                     {ACTION_LABEL[e.action] ?? e.action}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {e.courseCode ? (
-                      <>
+                    {e.courseCode && e.courseId && e.versionId ? (
+                      <Link
+                        href={`/courses/${e.courseId}/versions/${e.versionId}`}
+                        className="font-medium text-primary hover:underline"
+                        title={e.courseName ?? undefined}
+                      >
                         {e.courseCode}
                         {e.versionNo && (
                           <span className="text-xs"> (v{e.versionNo})</span>
                         )}
-                      </>
+                      </Link>
                     ) : (
                       <span className="italic">&mdash;</span>
                     )}

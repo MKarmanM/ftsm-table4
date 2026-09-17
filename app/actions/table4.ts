@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageDraft } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
+import { validateControlledMappings } from "@/lib/table4-master-data";
 import {
   Prisma,
   CourseClassification,
@@ -156,28 +157,43 @@ export async function saveBasicInfoAction(
     classificationDomain: String(formData.get("classificationDomain") ?? "") || null,
   };
 
-  const dataPart2 = {
-    transferableSkills: splitLines(String(formData.get("transferableSkills") ?? "")),
-    specialRequirements: String(formData.get("specialRequirements") ?? "") || null,
-    referencesText: String(formData.get("referencesText") ?? "") || null,
-    // Checkbox groups — multiple values can share the same field name.
-    futureReadyElements: formData.getAll("futureReadyElements").map(String),
-    excelFramework: formData.getAll("excelFramework").map(String),
-    sdgTags: formData.getAll("sdgTags").map(String),
-    aiElement: formData.get("aiElement") === "on",
-    isIndustrialTraining50Elt: formData.get("isIndustrialTraining50Elt") === "on",
-    facultyApprovalDate: formData.get("facultyApprovalDate")
-      ? new Date(String(formData.get("facultyApprovalDate")))
-      : null,
-    senateApprovalDate: formData.get("senateApprovalDate")
-      ? new Date(String(formData.get("senateApprovalDate")))
-      : null,
-  };
+  let dataPart2: {
+    transferableSkills: string[];
+    specialRequirements: string | null;
+    referencesText: string | null;
+    futureReadyElements: string[];
+    excelFramework: string[];
+    sdgTags: string[];
+    aiElement: boolean;
+    isIndustrialTraining50Elt: boolean;
+  } | null = null;
+
+  if (formPart === "2") {
+    const mappingValidation = validateControlledMappings({
+      futureReadyElements: formData.getAll("futureReadyElements").map(String),
+      excelFramework: formData.getAll("excelFramework").map(String),
+      sdgTags: formData.getAll("sdgTags").map(String),
+    });
+    if (!mappingValidation.ok) {
+      return { error: mappingValidation.error };
+    }
+
+    dataPart2 = {
+      transferableSkills: splitLines(String(formData.get("transferableSkills") ?? "")),
+      specialRequirements: String(formData.get("specialRequirements") ?? "") || null,
+      referencesText: String(formData.get("referencesText") ?? "") || null,
+      ...mappingValidation.value,
+      aiElement: formData.get("aiElement") === "on",
+      isIndustrialTraining50Elt: formData.get("isIndustrialTraining50Elt") === "on",
+    };
+  }
 
   try {
     await prisma.proformaVersion.update({
       where: { id: versionId },
-      data: formPart === "2" ? dataPart2 : dataPart1,
+      // Approval dates are intentionally excluded here. They are governance
+      // fields and can only be stamped by APPROVE/PUBLISH workflow actions.
+      data: formPart === "2" ? dataPart2! : dataPart1,
     });
   } catch (err) {
     console.error("saveBasicInfoAction failed:", err);
