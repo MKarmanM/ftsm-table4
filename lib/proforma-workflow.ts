@@ -5,6 +5,7 @@ import { VALID_TRANSITIONS, ACTION_TO_STATUS } from "./workflow-constants";
 import { notifyReviewAction } from "./notifications";
 import { after } from "next/server";
 import { computeSltSummary, normalizeHours } from "./table4-detail";
+import { formatValidationIssues, validateTable4ForSubmission } from "./table4-validation";
 
 // Server-only: this file imports "./prisma" (pg driver, Node-only). Never
 // import this from a Client Component — import lib/workflow-constants.ts
@@ -22,11 +23,21 @@ export async function applyReviewAction(params: {
   const { versionId, actorId, type, note } = params;
   const nextStatus = ACTION_TO_STATUS[type];
 
+  // Submission is the quality gate. A draft cannot enter the review chain
+  // until all mandatory Table 4 business rules are satisfied.
+  if (type === "SUBMIT") {
+    const issues = await validateTable4ForSubmission(versionId);
+    if (issues.length > 0) {
+      throw new WorkflowError(formatValidationIssues(issues));
+    }
+  }
+
   try {
     const updated = await prisma.$transaction(async (tx) => {
       const version = await tx.proformaVersion.findUniqueOrThrow({
         where: { id: versionId },
         include: {
+          course: { select: { creditHours: true } },
           topics: { select: { hours: true } },
           assessments: { select: { hours: true } },
         },
@@ -43,26 +54,11 @@ export async function applyReviewAction(params: {
         nextStatus === ProformaStatus.SUBMITTED
           ? { submittedAt: new Date() }
           : nextStatus === ProformaStatus.APPROVED
-          ? // Item 15 ("Tarikh Kelulusan Terkini / Faculty") is derived
-            // from the Programme Coordinator's approval — not typed
-            // manually — per the official Table 4 convention that
-            // Faculty approval = Programme Coordinator sign-off date.
-            { approvedAt: new Date(), facultyApprovalDate: new Date() }
+          ? { approvedAt: new Date(), facultyApprovalDate: new Date() }
           : nextStatus === ProformaStatus.PUBLISHED
-          ? // Item 15's Senate date is likewise derived — from the
-            // Faculty Officer's publish action.
-            { publishedAt: new Date(), senateApprovalDate: new Date() }
+          ? { publishedAt: new Date(), senateApprovalDate: new Date() }
           : {};
 
-      // Publishing a new version automatically supersedes whichever
-      // version of this course is currently PUBLISHED (if any) — this is
-      // a system-triggered transition, not something a user clicks a
-      // button for, which is why SUPERSEDED has no corresponding
-      // ReviewActionType. Doing this inside the same transaction as the
-      // PUBLISH update means the partial unique index
-      // (one_published_version_per_course, see manual-fixes.sql) never
-      // actually gets violated in the normal flow — the old row moves
-      // out of the way first.
       if (nextStatus === ProformaStatus.PUBLISHED) {
         const slt = computeSltSummary(
           version.topics.map((topic) => ({ hours: normalizeHours(topic.hours) })),
@@ -71,9 +67,10 @@ export async function applyReviewAction(params: {
           })),
           version.isIndustrialTraining50Elt
         );
-        if (slt.suggestedCreditHours <= 0) {
+        const expectedCreditHours = Number(version.course.creditHours);
+        if (slt.suggestedCreditHours !== expectedCreditHours) {
           throw new WorkflowError(
-            "Jumlah SLT belum mencukupi untuk menghasilkan nilai kredit. Lengkapkan SLT sebelum menerbitkan."
+            `Jumlah SLT (${slt.grandTotal} jam) tidak sepadan dengan ${expectedCreditHours} kredit kursus. Betulkan SLT sebelum menerbitkan.`
           );
         }
 
@@ -102,11 +99,6 @@ export async function applyReviewAction(params: {
             },
           });
         }
-
-        await tx.course.update({
-          where: { id: version.courseId },
-          data: { creditHours: slt.suggestedCreditHours },
-        });
       }
 
       const updated = await tx.proformaVersion.update({
@@ -132,9 +124,6 @@ export async function applyReviewAction(params: {
       return updated;
     });
 
-    // Schedule notification work in Next.js' request lifecycle so a
-    // serverless runtime does not freeze the function before it finishes.
-    // Email failure remains best-effort and never rolls back the workflow.
     after(async () => {
       try {
         const [course, actor] = await Promise.all([
@@ -161,9 +150,6 @@ export async function applyReviewAction(params: {
 
     return updated;
   } catch (err) {
-    // Translate the partial-unique-index violation (see manual-fixes.sql)
-    // into a message a UI can actually show someone, instead of a raw
-    // Postgres constraint error.
     if (
       err instanceof Prisma.PrismaClientKnownRequestError &&
       err.code === "P2010" &&
