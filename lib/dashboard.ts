@@ -7,6 +7,7 @@ import {
   type PermissionUser,
 } from "./permissions";
 import { ProformaStatus, Role } from "./generated/prisma/enums";
+import { computeDashboardAnalytics } from "./dashboard-analytics";
 
 // Only "in-flight" statuses can ever need someone's action next; PUBLISHED/
 // SUPERSEDED/ARCHIVED are terminal for that version (a new draft might
@@ -88,4 +89,23 @@ export async function getStatusCounts() {
     status,
     count: counts[status] ?? 0,
   }));
+}
+
+export async function getDashboardAnalytics() {
+  const courses = await prisma.course.findMany({
+    where: { isActive: true },
+    select: {
+      versions: {
+        orderBy: { versionNo: "desc" },
+        take: 1,
+        select: { status: true },
+      },
+    },
+  });
+
+  return computeDashboardAnalytics(
+    courses.map((course) => ({
+      latestStatus: course.versions[0]?.status ?? null,
+    }))
+  );
 }
