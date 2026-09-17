@@ -38,10 +38,7 @@ function splitBilingual(combined: string | null): { bm: string; en: string } {
 function useAutoSaveOnBlur(readOnly: boolean) {
   return (e: React.FocusEvent<HTMLFormElement>) => {
     if (readOnly) return;
-    const form = e.currentTarget;
-    if (!form.contains(e.relatedTarget as Node)) {
-      form.requestSubmit();
-    }
+    e.currentTarget.requestSubmit();
   };
 }
 
@@ -49,25 +46,29 @@ function SaveStatus({ state, isPending }: { state: SaveBasicInfoState; isPending
   if (isPending) {
     return (
       <p className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5 text-sm text-muted-foreground">
-        Menyimpan&hellip;
+        Menyimpan perubahan&hellip;
       </p>
     );
   }
   if (state?.error) {
     return (
       <p role="alert" className="inline-flex items-center gap-1.5 rounded-md bg-destructive/10 px-2.5 py-1.5 text-sm text-destructive">
-        {state.error}
+        Tidak dapat menyimpan: {state.error}
       </p>
     );
   }
   if (state?.success) {
     return (
       <p className="inline-flex items-center gap-1.5 rounded-md bg-success/10 px-2.5 py-1.5 text-sm font-medium text-success">
-        &#10003; Disimpan
+        &#10003; Semua perubahan disimpan · {new Date().toLocaleTimeString("ms-MY", { hour: "2-digit", minute: "2-digit" })}
       </p>
     );
   }
-  return null;
+  return (
+    <p className="text-xs text-muted-foreground">
+      Autosimpan aktif — perubahan disimpan apabila anda keluar dari sesuatu ruangan.
+    </p>
+  );
 }
 
 export function BasicInfoFormPart1({
@@ -102,6 +103,8 @@ export function BasicInfoFormPart1({
       <input type="hidden" name="courseId" value={courseId} />
       <input type="hidden" name="formPart" value="1" />
 
+      {!readOnly && <SaveStatus state={state} isPending={isPending} />}
+
       <BilingualTextarea
         labelEn="Synopsis"
         labelMs="Sinopsis"
@@ -126,7 +129,7 @@ export function BasicInfoFormPart1({
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Field labelEn="Year Offered" labelMs="Tahun Ditawarkan" name="yearOffered" type="number"
           defaultValue={initial.yearOffered?.toString() ?? ""} readOnly={readOnly} />
         <Field labelEn="Semester" labelMs="Semester" name="semesterOffered" type="number"
@@ -148,7 +151,7 @@ export function BasicInfoFormPart1({
       <Field labelEn="Pre-requisite" labelMs="Pra-syarat" name="prerequisite"
         defaultValue={initial.prerequisite ?? ""} readOnly={readOnly} />
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div>
           <BilingualLabel en="Course Classification" ms="Klasifikasi Kursus" />
           <select
@@ -213,6 +216,8 @@ export function BasicInfoFormPart2({
       <input type="hidden" name="courseId" value={courseId} />
       <input type="hidden" name="formPart" value="2" />
 
+      {!readOnly && <SaveStatus state={state} isPending={isPending} />}
+
       <div>
         <BilingualLabel en="Transferable Skills" ms="Kemahiran Boleh Pindah" />
         <p className="mt-1 text-xs text-muted-foreground">Satu kemahiran setiap baris.</p>
@@ -275,7 +280,7 @@ export function BasicInfoFormPart2({
           <p className="mt-1 text-xs text-muted-foreground">
             Pilih maksimum {SDG_MAX_SELECTION} SDG (templat rasmi hanya ada {SDG_MAX_SELECTION} kotak).
           </p>
-          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2.5">
+          <div className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2.5 sm:grid-cols-2">
             {SDG_OPTIONS.map((opt) => (
               <label key={opt} className="flex items-start gap-2.5 rounded-md p-1.5 text-sm text-foreground hover:bg-muted/40">
                 <input
@@ -297,22 +302,20 @@ export function BasicInfoFormPart2({
       <div>
         <BilingualLabel en="Artificial Intelligence (AI) Element" ms="Elemen AI" />
         <p className="mt-1 text-xs text-muted-foreground">
-          <span className="italic text-primary">Yes/No</span>
-          &mdash; Sila tandakan jika <span className="italic text-primary">Yes</span>/Ya.
-          Jika <span className="italic text-primary">No</span>/Tidak, biarkan sahaja.
+          Tandakan jika kursus mempunyai elemen AI. Jika tiada, biarkan kotak tidak ditanda.
         </p>
         <label className="mt-2 flex items-center gap-2 text-sm text-foreground">
           <input type="checkbox" name="aiElement" defaultChecked={initial.aiElement} disabled={readOnly} />
-          <span><span className="italic text-primary">Yes</span>/Ya</span>
+          <span>Ya / Yes</span>
         </label>
       </div>
 
       <div>
         <BilingualLabel en="Latest Approval Date" ms="Tarikh Kelulusan Terkini" />
         <p className="mt-1 text-xs text-muted-foreground">
-          Ditetapkan automatik oleh aliran kerja APPROVE/PUBLISH &mdash; bukan input pengguna.
+          Tarikh diisi automatik apabila Table 4 diluluskan di peringkat fakulti dan diterbitkan. Bukan input pengguna.
         </p>
-        <div className="mt-1.5 grid grid-cols-2 gap-4">
+        <div className="mt-1.5 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <p className="text-xs text-muted-foreground"><span className="italic text-primary">Faculty</span>/Fakulti</p>
             <div className="mt-1 rounded-md border border-input bg-muted/40 px-3 py-2 text-sm text-foreground">
