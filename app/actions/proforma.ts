@@ -8,6 +8,7 @@ import { applyReviewAction } from "@/lib/proforma-workflow";
 import { canManageDraft, canViewDraft, isActionPermitted } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { Prisma, ReviewActionType } from "@/lib/generated/prisma/client";
+import { REVIEW_COMMENT_SECTION_KEYS } from "@/lib/review-comment-sections";
 
 const PERMISSION_DENIED_MESSAGE =
   "Anda tidak mempunyai kebenaran untuk tindakan ini.";
@@ -196,6 +197,9 @@ export async function createCommentAction(
 
   if (!versionId || !body) return { error: "Komen tidak boleh kosong." };
   if (body.length > 2000) return { error: "Komen terlalu panjang (maksimum 2000 aksara)." };
+  if (sectionKey && !REVIEW_COMMENT_SECTION_KEYS.has(sectionKey)) {
+    return { error: "Bahagian komen tidak sah." };
+  }
 
   const version = await prisma.proformaVersion.findUnique({
     where: { id: versionId },
