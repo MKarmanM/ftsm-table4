@@ -1,45 +1,3 @@
-// First-slice schema.
-// Table 4 body stays in ProformaVersion.payload until the official format is confirmed.
-// Child academic tables (CLO, PLO rows, topics, teaching plan, activities, SLT,
-// assessments) are intentionally omitted from this slice.
-//
-// Deliberate decisions locked for this slice:
-// - onDelete: Restrict on every relation. Nothing in this domain should be
-//   hard-deletable via cascade (courses, users, versions, audit trail).
-//   Deactivate with isActive / status changes instead of deleting rows.
-// - PUBLISHED uniqueness (one published version per course) and the
-//   NULL-safe UserRole uniqueness are enforced by hand-written partial
-//   unique indexes, since Prisma's schema DSL cannot express partial
-//   (WHERE-clause) unique indexes. See prisma/manual-fixes.sql — append
-//   its contents to your first migration.sql before applying (see that
-//   file's header for the exact steps).
-// - versionNo generation must happen inside a serializable transaction —
-//   see lib/proforma-version.ts. Do not compute MAX(versionNo)+1 outside
-//   a transaction; two simultaneous "create draft" calls will collide.
-
-// - Second slice: real Table 4 structure (CLO, CLO-PLO mapping, weekly
-//   topics/SLT, assessment items) now confirmed against UKM's official
-//   Table 4 v2.0 (June 2020, PPPK update 26.6.2024) — see ProgrammePlo,
-//   CourseLearningOutcome, CloPloMapping, CourseTopic, AssessmentItem
-//   below, plus the new scalar fields on ProformaVersion. The old
-//   `payload` JSON field stays as a catch-all for anything not yet
-//   modelled (or captured before this slice existed).
-// - SLT hours per topic/assessment are stored as a simplified 3-number
-//   JSON ({f2fPhysical, f2fOnline, independent}) rather than the
-//   official form's full 8-cell L/T/P/O × mode breakdown. This is
-//   enough to compute the two headline ODL percentages (A: %F2F
-//   Physical, B: %Online+Independent) but NOT the Practical-component
-//   breakdown (C/C1/C2), which needs the L/T/P/O split we dropped.
-//   Flagged as a known simplification — revisit if FTSM confirms C/C1/C2
-//   must be tracked.
-// - CloPloMapping.clo uses onDelete: Cascade (the one deliberate
-//   exception to the no-cascade rule above): a mapping tick has no
-//   meaning once its CLO is deleted mid-edit, and forcing someone to
-//   manually unmap every PLO before deleting a CLO from a draft would
-//   be painful UX for no safety benefit. CloPloMapping.programmePlo
-//   stays Restrict — deleting a programme-wide PLO that's actively
-//   mapped anywhere should still be blocked.
-
 enum CourseClassification {
   WU_CITRA_WAJIB
   WU_CITRA_RENTAS
@@ -53,12 +11,6 @@ enum AssessmentPhase {
   FINAL
 }
 
-// Bloom's/Simpson's taxonomy domain used to classify a CLO's verb —
-// Cognitive (K1-K6, coded C1-C6), Affective (A1-A5), Psychomotor
-// (P1-P7). This is a DIFFERENT classification from MQF Cluster
-// (mqfClusters below) — see the UKM "Panduan Pemetaan Kluster..."
-// and taxonomy verb-table references. The inline "(C4; PLO2)" style
-// annotation seen on official Table 4 documents comes from this.
 enum TaxonomyDomain {
   KOGNITIF
   AFEKTIF
@@ -94,8 +46,9 @@ model CourseLearningOutcome {
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
-  version  ProformaVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
-  mappings CloPloMapping[]
+  version       ProformaVersion  @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  mappings      CloPloMapping[]
+  topicMappings TopicCloMapping[]
 
   @@unique([versionId, orderIndex])
   @@index([versionId])
@@ -119,15 +72,30 @@ model CourseTopic {
   orderIndex Int
   topicMs    String
   topicEn    String?
+  // Legacy field retained temporarily for safe migration of existing data.
+  // New writes use TopicCloMapping instead.
   cloRef     String?
   hours      Json     @default("{}")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
-  version ProformaVersion @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  version     ProformaVersion  @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  cloMappings TopicCloMapping[]
 
   @@unique([versionId, orderIndex])
   @@index([versionId])
+}
+
+model TopicCloMapping {
+  id      String @id @default(cuid())
+  topicId String
+  cloId   String
+
+  topic CourseTopic           @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  clo   CourseLearningOutcome @relation(fields: [cloId], references: [id], onDelete: Cascade)
+
+  @@unique([topicId, cloId])
+  @@index([cloId])
 }
 
 model AssessmentItem {
@@ -194,12 +162,12 @@ model User {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  roles             UserRole[]
-  assignments       CourseAssignment[]
-  versionsCreated   ProformaVersion[]  @relation("VersionCreatedBy")
-  reviewActions     ReviewAction[]
-  comments          ReviewComment[]
-  auditEvents       AuditEvent[]
+  roles           UserRole[]
+  assignments     CourseAssignment[]
+  versionsCreated ProformaVersion[] @relation("VersionCreatedBy")
+  reviewActions   ReviewAction[]
+  comments        ReviewComment[]
+  auditEvents     AuditEvent[]
 }
 
 model UserRole {
@@ -207,18 +175,10 @@ model UserRole {
   userId      String
   role        Role
   programmeId String?
-  user        User       @relation(fields: [userId], references: [id], onDelete: Restrict)
-  programme   Programme? @relation(fields: [programmeId], references: [id], onDelete: Restrict)
 
-  // NOTE: @@unique([userId, role, programmeId]) does NOT stop duplicate
-  // (userId, role) rows when programmeId is NULL, because PostgreSQL treats
-  // every NULL as distinct for uniqueness purposes. This constraint only
-  // protects programme-scoped roles (e.g. two PROGRAMME_COORDINATOR rows
-  // for the same user + same programme).
-  //
-  // A second, partial unique index covers the NULL case (faculty-wide
-  // roles like ADMIN, FACULTY_OFFICER, LECTURER) — see
-  // prisma/migrations/00000000000000_manual_fixes/migration.sql
+  user      User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  programme Programme? @relation(fields: [programmeId], references: [id], onDelete: Restrict)
+
   @@unique([userId, role, programmeId])
   @@index([role])
 }
@@ -283,25 +243,24 @@ model ProformaVersion {
   createdAt           DateTime       @default(now())
   updatedAt           DateTime       @updatedAt
 
-  // ---- Table 4 structured fields (v2.0 UKM format) ----------------
-  synopsis                String?
-  academicStaffNames      String[]
-  yearOffered             Int?
-  semesterOffered         Int?
-  offeringRemarks         String?
-  prerequisite            String?
-  classification          CourseClassification?
-  classificationDomain    String?
-  transferableSkills      String[]
-  specialRequirements     String?
-  referencesText          String?
-  futureReadyElements     String[]
-  excelFramework          String[]
-  sdgTags                 String[]
-  aiElement                Boolean  @default(false)
-  isIndustrialTraining50Elt Boolean @default(false)
-  facultyApprovalDate     DateTime?
-  senateApprovalDate      DateTime?
+  synopsis                  String?
+  academicStaffNames        String[]
+  yearOffered               Int?
+  semesterOffered           Int?
+  offeringRemarks           String?
+  prerequisite              String?
+  classification            CourseClassification?
+  classificationDomain      String?
+  transferableSkills        String[]
+  specialRequirements       String?
+  referencesText            String?
+  futureReadyElements       String[]
+  excelFramework            String[]
+  sdgTags                   String[]
+  aiElement                 Boolean  @default(false)
+  isIndustrialTraining50Elt Boolean  @default(false)
+  facultyApprovalDate       DateTime?
+  senateApprovalDate        DateTime?
 
   course        Course                  @relation(fields: [courseId], references: [id], onDelete: Restrict)
   createdBy     User                    @relation("VersionCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
