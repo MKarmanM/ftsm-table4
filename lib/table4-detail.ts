@@ -1,9 +1,5 @@
 import { prisma } from "./prisma";
 
-// Full L/T/P/O breakdown per delivery mode, matching the official Table 4
-// SLT grid — replaces the earlier 3-number simplification now that we can
-// compute the Practical component (C) as well as the two ODL headline
-// percentages (A, B).
 export type LtpoBreakdown = { l: number; t: number; p: number; o: number };
 export type HoursBreakdown = {
   f2fPhysical: LtpoBreakdown;
@@ -36,7 +32,14 @@ export async function getTable4Detail(versionId: string) {
         orderBy: { orderIndex: "asc" },
         include: { mappings: true },
       },
-      topics: { orderBy: { orderIndex: "asc" } },
+      topics: {
+        orderBy: { orderIndex: "asc" },
+        include: {
+          cloMappings: {
+            include: { clo: { select: { id: true, orderIndex: true } } },
+          },
+        },
+      },
       assessments: { orderBy: [{ phase: "asc" }, { orderIndex: "asc" }] },
     },
   });
@@ -95,14 +98,23 @@ export async function getTable4Detail(versionId: string) {
       taxonomyLevel: c.taxonomyLevel,
       mappedPloIds: c.mappings.map((m) => m.programmePloId),
     })),
-    topics: version.topics.map((t) => ({
-      id: t.id,
-      orderIndex: t.orderIndex,
-      topicMs: t.topicMs,
-      topicEn: t.topicEn,
-      cloRef: t.cloRef,
-      hours: normalizeHours(t.hours),
-    })),
+    topics: version.topics.map((t) => {
+      const mappedClos = t.cloMappings
+        .map((m) => m.clo)
+        .sort((a, b) => a.orderIndex - b.orderIndex);
+      return {
+        id: t.id,
+        orderIndex: t.orderIndex,
+        topicMs: t.topicMs,
+        topicEn: t.topicEn,
+        mappedCloIds: mappedClos.map((c) => c.id),
+        cloRef:
+          mappedClos.length > 0
+            ? mappedClos.map((c) => `CLO${c.orderIndex}`).join(", ")
+            : t.cloRef,
+        hours: normalizeHours(t.hours),
+      };
+    }),
     assessments: version.assessments.map((a) => ({
       id: a.id,
       phase: a.phase,
@@ -117,10 +129,6 @@ export async function getTable4Detail(versionId: string) {
 
 export type Table4Detail = Awaited<ReturnType<typeof getTable4Detail>>;
 
-// SUB-TOTAL/SUB-JUMLAH SLT for one group of rows (e.g. just the topics
-// table, or just the continuous-assessment items) — matches the
-// official Table 4 form, which shows a sub-total under each block
-// before the combined GRAND TOTAL further down.
 export function computeGroupTotal(rows: { hours: HoursBreakdown }[]): number {
   let total = 0;
   for (const row of rows) {
@@ -131,12 +139,9 @@ export function computeGroupTotal(rows: { hours: HoursBreakdown }[]): number {
   return total;
 }
 
-// SLT percentages computed from topics + assessments, per the official
-// Table 4 formula. We do NOT store these — they're derived every time so
-// they can never go stale.
-//   A = %F2F Physical (L+T+P+O)
-//   B = %F2F Online (L+T+P+O) + %Independent
-//   C = %Practical (P, summed across both physical and online modes)
+// SLT percentages and credit are derived values; users never key in the
+// official credit value manually. When a version is published, the derived
+// credit is persisted to Course.creditHours for catalog/reporting display.
 export function computeSltSummary(
   topics: { hours: HoursBreakdown }[],
   assessments: { hours: HoursBreakdown }[],
@@ -155,18 +160,15 @@ export function computeSltSummary(
   }
 
   const grandTotal = f2fPhysical + f2fOnline + independent;
-  const pct = (n: number) => (grandTotal > 0 ? Math.round((n / grandTotal) * 10000) / 100 : 0);
+  const pct = (n: number) =>
+    grandTotal > 0 ? Math.round((n / grandTotal) * 10000) / 100 : 0;
 
   // Official Table 4 formula (item 5, Nilai Kredit):
-  //   =IF(<50% ELT checkbox>, INT(grandTotal/80), INT(grandTotal/40))
-  // i.e. 40 SLT hours = 1 credit normally, 80 hours = 1 credit for
-  // Industrial Training/Clinical Placement using 50% ELT. This is a
-  // SUGGESTED value derived from this version's own SLT entries — it
-  // is not written back to Course.creditHours automatically, since that
-  // field is shared across all versions of a course and changing it
-  // should be a deliberate, visible action, not a silent side effect of
-  // editing SLT numbers.
-  const suggestedCreditHours = Math.floor(grandTotal / (isIndustrialTraining50Elt ? 80 : 40));
+  // normal course: INT(total SLT / 40)
+  // Industrial Training/Clinical Placement with 50% ELT: INT(total SLT / 80)
+  const suggestedCreditHours = Math.floor(
+    grandTotal / (isIndustrialTraining50Elt ? 80 : 40)
+  );
 
   return {
     f2fPhysical,
