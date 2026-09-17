@@ -14,7 +14,7 @@ export async function validateTable4ForSubmission(
     include: {
       course: { select: { creditHours: true } },
       clos: { include: { mappings: true } },
-      topics: true,
+      topics: { include: { cloMappings: true } },
       assessments: true,
     },
   });
@@ -63,6 +63,14 @@ export async function validateTable4ForSubmission(
 
   if (version.topics.length === 0) {
     issues.push({ code: "TOPIC_REQUIRED", message: "Sekurang-kurangnya satu topik/kandungan kursus diperlukan." });
+  }
+  for (const topic of version.topics) {
+    if (topic.cloMappings.length === 0) {
+      issues.push({
+        code: "TOPIC_CLO_REQUIRED",
+        message: `Topik ${topic.orderIndex}: mesti dipetakan kepada sekurang-kurangnya satu CLO.`,
+      });
+    }
   }
 
   if (version.assessments.length === 0) {
