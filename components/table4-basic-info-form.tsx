@@ -1,10 +1,8 @@
 "use client";
 
 import { useActionState, useRef } from "react";
-import {
-  saveBasicInfoAction,
-  type SaveBasicInfoState,
-} from "@/app/actions/table4";
+import { saveBasicInfoAction } from "@/app/actions/table4";
+import { saveGovernanceInfoAction } from "@/app/actions/table4-governance";
 import { BilingualLabel, BilingualTextarea } from "@/components/table4-bilingual-label";
 import {
   EXCEL_FRAMEWORK_OPTIONS,
@@ -13,7 +11,8 @@ import {
   SDG_OPTIONS,
 } from "@/lib/table4-master-data";
 
-const initialState: SaveBasicInfoState = {};
+type SaveState = { error?: string; success?: boolean };
+const initialState: SaveState = {};
 
 const CLASSIFICATION_OPTIONS = [
   { value: "", label: "— Pilih —" },
@@ -45,7 +44,7 @@ function useAutoSaveOnBlur(readOnly: boolean) {
   };
 }
 
-function SaveStatus({ state, isPending }: { state: SaveBasicInfoState; isPending: boolean }) {
+function SaveStatus({ state, isPending }: { state: SaveState; isPending: boolean }) {
   if (isPending) {
     return (
       <p className="inline-flex items-center gap-1.5 rounded-md bg-muted px-2.5 py-1.5 text-sm text-muted-foreground">
@@ -193,7 +192,7 @@ export function BasicInfoFormPart2({
     senateApprovalDate: Date | null;
   };
 }) {
-  const [state, formAction, isPending] = useActionState(saveBasicInfoAction, initialState);
+  const [state, formAction, isPending] = useActionState(saveGovernanceInfoAction, initialState);
   const handleBlur = useAutoSaveOnBlur(readOnly);
   const formRef = useRef<HTMLFormElement>(null);
 
@@ -211,7 +210,6 @@ export function BasicInfoFormPart2({
     <form ref={formRef} action={formAction} onBlur={handleBlur} className="space-y-6">
       <input type="hidden" name="versionId" value={versionId} />
       <input type="hidden" name="courseId" value={courseId} />
-      <input type="hidden" name="formPart" value="2" />
 
       <div>
         <BilingualLabel en="Transferable Skills" ms="Kemahiran Boleh Pindah" />
