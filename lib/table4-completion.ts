@@ -14,7 +14,7 @@ type CompletionInput = {
     teachingMethods: string | null;
     assessmentMethods: string | null;
     taxonomyDomain: string | null;
-    taxonomyLevel: string | null;
+    taxonomyLevel: number | null;
     mappedPloIds: string[];
   }>;
   topics: Array<{ hours: HoursBreakdown }>;
@@ -43,7 +43,7 @@ export function computeTable4Completion(input: CompletionInput) {
         hasText(clo.teachingMethods) &&
         hasText(clo.assessmentMethods) &&
         hasText(clo.taxonomyDomain) &&
-        hasText(clo.taxonomyLevel) &&
+        clo.taxonomyLevel !== null &&
         clo.mappedPloIds.length > 0
     );
 
