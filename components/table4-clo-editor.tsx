@@ -33,6 +33,7 @@ type Clo = {
 type Plo = { id: string; orderNumber: number; textMs: string };
 
 const initialAdd: CloFormState = {};
+const inputClass = "mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none transition-[border-color,box-shadow] focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
 export function CloEditor({
   versionId,
@@ -64,10 +65,9 @@ export function CloEditor({
   return (
     <div className="space-y-4">
       {plos.length === 0 && (
-        <p className="text-xs text-warning">
+        <p className="rounded-md border border-warning/20 bg-warning/5 px-3 py-2 text-sm text-warning sm:text-xs">
           Belum ada PLO didaftarkan untuk program ini. Tambah PLO dahulu di
-          Urus Katalog &rarr; Semua Program supaya pemetaan CLO&ndash;PLO
-          boleh dibuat.
+          Urus Katalog &rarr; Semua Program supaya pemetaan CLO&ndash;PLO boleh dibuat.
         </p>
       )}
 
@@ -95,7 +95,7 @@ export function CloEditor({
       )}
 
       {!readOnly && isAddOpen && (
-        <form ref={formRef} action={addAction} className="space-y-3 rounded-md border border-border p-4">
+        <form ref={formRef} action={addAction} className="space-y-4 rounded-lg border border-border bg-card p-3.5 sm:p-4">
           <input type="hidden" name="versionId" value={versionId} />
           <input type="hidden" name="courseId" value={courseId} />
           <p className="text-sm font-semibold text-foreground">Tambah CLO</p>
@@ -107,24 +107,18 @@ export function CloEditor({
             required
             rows={2}
           />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <BilingualLabel en="Teaching Methods" ms="Kaedah Penyampaian" />
-              <input
-                name="teachingMethods"
-                className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-              />
+              <input name="teachingMethods" className={inputClass} />
             </div>
             <div>
               <BilingualLabel en="Assessment Methods" ms="Kaedah Penilaian" />
-              <input
-                name="assessmentMethods"
-                className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-              />
+              <input name="assessmentMethods" className={inputClass} />
             </div>
           </div>
           <TaxonomyPicker />
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button type="submit" size="sm" disabled={isAdding}>
               {isAdding ? "Menambah..." : "Tambah CLO"}
             </Button>
@@ -133,7 +127,7 @@ export function CloEditor({
             </Button>
           </div>
           {addState?.error && (
-            <p role="alert" className="text-xs text-destructive">
+            <p role="alert" className="text-sm text-destructive sm:text-xs">
               {addState.error}
             </p>
           )}
@@ -159,12 +153,8 @@ function CloRow({
   readOnly: boolean;
 }) {
   const [isEditing, setIsEditing] = useState(false);
-  
   const [removeState, removeAction] = useActionState(removeCloAction, initialAdd);
-  const [toggleState, toggleAction] = useActionState(
-    toggleCloPloMappingAction,
-    initialAdd
-  );
+  const [toggleState, toggleAction] = useActionState(toggleCloPloMappingAction, initialAdd);
   const [updateState, updateAction, isUpdating] = useActionState(
     async (previousState: CloFormState, formData: FormData) => {
       const result = await updateCloAction(previousState, formData);
@@ -178,12 +168,12 @@ function CloRow({
 
   if (isEditing) {
     return (
-      <li className="rounded-md border border-border p-4">
-        <form action={updateAction} className="space-y-3">
+      <li className="rounded-lg border border-primary/20 bg-primary/[0.02] p-3.5 sm:p-4">
+        <form action={updateAction} className="space-y-4">
           <input type="hidden" name="versionId" value={versionId} />
           <input type="hidden" name="courseId" value={courseId} />
           <input type="hidden" name="cloId" value={clo.id} />
-          <p className="text-xs font-semibold text-muted-foreground uppercase">
+          <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
             Edit CLO{clo.orderIndex}
           </p>
           <BilingualTextarea
@@ -196,40 +186,27 @@ function CloRow({
             required
             rows={2}
           />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
               <BilingualLabel en="Teaching Methods" ms="Kaedah Penyampaian" />
-              <input
-                name="teachingMethods"
-                defaultValue={clo.teachingMethods ?? ""}
-                className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-              />
+              <input name="teachingMethods" defaultValue={clo.teachingMethods ?? ""} className={inputClass} />
             </div>
             <div>
               <BilingualLabel en="Assessment Methods" ms="Kaedah Penilaian" />
-              <input
-                name="assessmentMethods"
-                defaultValue={clo.assessmentMethods ?? ""}
-                className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
-              />
+              <input name="assessmentMethods" defaultValue={clo.assessmentMethods ?? ""} className={inputClass} />
             </div>
           </div>
           <TaxonomyPicker defaultDomain={clo.taxonomyDomain} defaultLevel={clo.taxonomyLevel} />
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button type="submit" size="sm" disabled={isUpdating}>
-              {isUpdating ? "..." : "Simpan"}
+              {isUpdating ? "Menyimpan..." : "Simpan"}
             </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsEditing(false)}
-            >
+            <Button type="button" variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
               Batal
             </Button>
           </div>
           {updateState?.error && (
-            <p role="alert" className="text-xs text-destructive">
+            <p role="alert" className="text-sm text-destructive sm:text-xs">
               {updateState.error}
             </p>
           )}
@@ -239,19 +216,17 @@ function CloRow({
   }
 
   return (
-    <li className="rounded-md border border-border p-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
+    <li className="rounded-lg border border-border bg-card p-3.5 transition-colors hover:border-primary/15 sm:p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <p className="text-sm font-medium text-foreground">
             CLO{clo.orderIndex}: {cloTextSplit.bm}
           </p>
           {cloTextSplit.en && (
-            <p className="mt-0.5 text-sm italic text-primary">
-              {cloTextSplit.en}
-            </p>
+            <p className="mt-0.5 text-sm italic text-primary">{cloTextSplit.en}</p>
           )}
           {(clo.teachingMethods || clo.assessmentMethods) && (
-            <p className="mt-1 text-xs text-muted-foreground">
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               {clo.teachingMethods && <>Penyampaian: {clo.teachingMethods}</>}
               {clo.teachingMethods && clo.assessmentMethods && " · "}
               {clo.assessmentMethods && <>Penilaian: {clo.assessmentMethods}</>}
@@ -263,11 +238,8 @@ function CloRow({
               .map((p) => p.orderNumber);
             const derivedMqf = deriveMqfClusters(mappedPloNumbers);
             return derivedMqf.length > 0 ? (
-              <p className="mt-1 text-xs text-muted-foreground">
-                Kluster MQF (auto, ikut PLO):{" "}
-                {derivedMqf
-                  .map((code) => `${code} \u2014 ${MQF_CODE_LABEL[code]}`)
-                  .join("; ")}
+              <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                Kluster MQF (auto, ikut PLO): {derivedMqf.map((code) => `${code} — ${MQF_CODE_LABEL[code]}`).join("; ")}
               </p>
             ) : null;
           })()}
@@ -278,14 +250,10 @@ function CloRow({
           )}
         </div>
         {!readOnly && (
-          <div className="flex shrink-0 items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setIsEditing(true)}
-              className="rounded-md px-2 py-1 text-xs font-medium text-secondary hover:bg-muted hover:text-foreground"
-            >
+          <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-auto">
+            <Button type="button" variant="ghost" size="xs" onClick={() => setIsEditing(true)}>
               Edit
-            </button>
+            </Button>
             <form
               action={removeAction}
               onSubmit={(e) => {
@@ -297,12 +265,9 @@ function CloRow({
               <input type="hidden" name="versionId" value={versionId} />
               <input type="hidden" name="courseId" value={courseId} />
               <input type="hidden" name="cloId" value={clo.id} />
-              <button
-                type="submit"
-                className="rounded-md px-2 py-1 text-xs font-medium text-destructive hover:bg-destructive/10"
-              >
+              <Button type="submit" variant="destructive" size="xs">
                 Buang
-              </button>
+              </Button>
             </form>
           </div>
         )}
@@ -310,11 +275,10 @@ function CloRow({
 
       {plos.length > 0 && (
         <>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Klik PLO untuk tetapkan pemetaan &mdash; Kluster MQF akan terbit
-            automatik ikut PLO yang ditandakan.
+          <p className="mt-3 text-sm text-muted-foreground sm:text-xs">
+            Pilih PLO yang berkaitan. PLO yang dipilih ditanda dengan ✓ dan Kluster MQF akan dikira automatik.
           </p>
-          <div className="mt-1.5 flex flex-wrap items-center gap-2">
+          <div className="mt-2 flex flex-wrap items-center gap-2">
             {plos.map((plo) => {
               const mapped = clo.mappedPloIds.includes(plo.id);
               return (
@@ -327,25 +291,24 @@ function CloRow({
                     type="submit"
                     disabled={readOnly}
                     title={plo.textMs}
-                    className={`rounded-full px-2.5 py-1 text-xs font-medium disabled:cursor-default ${
+                    aria-pressed={mapped}
+                    className={`inline-flex min-h-8 items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-semibold transition-[background-color,border-color,color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97] disabled:cursor-default ${
                       mapped
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted text-muted-foreground"
+                        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                        : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:bg-primary/5 hover:text-primary"
                     }`}
                   >
+                    {mapped && <span aria-hidden>✓</span>}
                     PLO{plo.orderNumber}
                   </button>
                 </form>
               );
             })}
-            
           </div>
-
-      
         </>
       )}
       {(removeState?.error || toggleState?.error) && (
-        <p role="alert" className="mt-1 text-xs text-destructive">
+        <p role="alert" className="mt-2 text-sm text-destructive sm:text-xs">
           {removeState?.error || toggleState?.error}
         </p>
       )}
