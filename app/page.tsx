@@ -1,7 +1,11 @@
 import { getCoursesOverview, STATUS_LABEL } from "@/lib/courses";
 import { getCurrentUser } from "@/lib/auth";
 import { canManageDraft, canViewDraft } from "@/lib/permissions";
-import { getPendingActionsForUser, getStatusCounts } from "@/lib/dashboard";
+import {
+  getDashboardAnalytics,
+  getPendingActionsForUser,
+  getStatusCounts,
+} from "@/lib/dashboard";
 import { StatusBadge, STATUS_CARD_STYLE } from "@/components/status-badge";
 import { cn } from "@/lib/utils";
 import { CreateDraftButton } from "@/components/create-draft-button";
@@ -9,10 +13,6 @@ import { SearchBox } from "@/components/search-box";
 import { buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
 
-// Statuses where the latest version is "done" — nothing further will
-// happen to it, so a new draft (next version) can be started on top of
-// it. Anything still in flight (DRAFT/SUBMITTED/CHANGES_REQUESTED/
-// APPROVED) must finish its own journey first.
 const TERMINAL_STATUSES = new Set(["PUBLISHED", "SUPERSEDED", "ARCHIVED"]);
 
 export const dynamic = "force-dynamic";
@@ -29,9 +29,10 @@ export default async function CoursesPage({
     getCurrentUser(),
   ]);
 
-  const [pendingActions, statusCounts] = await Promise.all([
+  const [pendingActions, statusCounts, analytics] = await Promise.all([
     currentUser ? getPendingActionsForUser(currentUser) : Promise.resolve([]),
     getStatusCounts(),
+    getDashboardAnalytics(),
   ]);
 
   return (
@@ -48,9 +49,31 @@ export default async function CoursesPage({
         </p>
       </header>
 
+      <section className="mb-6">
+        <h2 className="mb-3 text-sm font-semibold text-foreground">
+          Analitik Semasa
+        </h2>
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-6">
+          <MetricCard label="Kursus aktif" value={analytics.totalCourses} />
+          <MetricCard
+            label="Ada Table 4"
+            value={`${analytics.coveragePercent}%`}
+            detail={`${analytics.withTable4}/${analytics.totalCourses || 0} kursus`}
+          />
+          <MetricCard
+            label="Published"
+            value={`${analytics.publishedPercent}%`}
+            detail={`${analytics.published} kursus`}
+          />
+          <MetricCard label="Dalam semakan" value={analytics.inReview} />
+          <MetricCard label="Perlu pindaan" value={analytics.changesRequested} />
+          <MetricCard label="Belum ada Table 4" value={analytics.withoutTable4} />
+        </div>
+      </section>
+
       <section className="mb-8">
         <h2 className="mb-3 text-sm font-semibold text-foreground">
-          Ringkasan
+          Ringkasan Semua Versi
         </h2>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
           {statusCounts.map(({ status, count }) => (
@@ -70,6 +93,9 @@ export default async function CoursesPage({
             </div>
           ))}
         </div>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Ringkasan ini mengira semua versi sejarah. Analitik Semasa di atas hanya menggunakan versi terkini setiap kursus.
+        </p>
       </section>
 
       {currentUser && (
@@ -231,6 +257,24 @@ export default async function CoursesPage({
           </table>
         </div>
       )}
+    </div>
+  );
+}
+
+function MetricCard({
+  label,
+  value,
+  detail,
+}: {
+  label: string;
+  value: number | string;
+  detail?: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-card px-4 py-3">
+      <p className="text-2xl font-semibold text-foreground">{value}</p>
+      <p className="text-xs font-medium text-foreground">{label}</p>
+      {detail && <p className="mt-1 text-xs text-muted-foreground">{detail}</p>}
     </div>
   );
 }
