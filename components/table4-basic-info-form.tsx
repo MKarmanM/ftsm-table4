@@ -6,6 +6,12 @@ import {
   type SaveBasicInfoState,
 } from "@/app/actions/table4";
 import { BilingualLabel, BilingualTextarea } from "@/components/table4-bilingual-label";
+import {
+  EXCEL_FRAMEWORK_OPTIONS,
+  FUTURE_READY_OPTIONS,
+  SDG_MAX_SELECTION,
+  SDG_OPTIONS,
+} from "@/lib/table4-master-data";
 
 const initialState: SaveBasicInfoState = {};
 
@@ -18,42 +24,6 @@ const CLASSIFICATION_OPTIONS = [
   { value: "AUDIT", label: "Audit" },
 ];
 
-const FUTURE_READY_OPTIONS = [
-  "Element 1: Fluid & Organic Curriculum Structure / Elemen 1: Struktur Kurikulum Lentur dan Organik",
-  "Element 2: Transformative Learning & Teaching Delivery / Elemen 2: Pembelajaran Transformatif dan Penyampaian Pengajaran",
-  "Element 3: Alternative Assessments / Elemen 3: Penilaian Alternatif",
-];
-const EXCEL_FRAMEWORK_OPTIONS = [
-  "REAL (Research Infused Experiential Learning)",
-  "IDEAL (Industry Driven Experiential Learning)",
-  "POISE (Personalized Experiential Learning)",
-  "CARE (Community Resilience Experiential Learning)",
-];
-const SDG_OPTIONS = [
-  "SDG1: No Poverty/Tiada Kemiskinan",
-  "SDG2: Zero Hunger/Kelaparan Sifar",
-  "SDG3: Good Health and Well Being/Kesihatan dan Kesejahteraan yang Baik",
-  "SDG4: Quality Education/Pendidikan Berkualiti",
-  "SDG5: Gender Equality/Kesamarataan Gender",
-  "SDG6: Clean Water and Sanitation/Kebersihan Air dan Sanitasi",
-  "SDG7: Affordable and Clean Energy/Tenaga yang Berpatutan dan Bersih",
-  "SDG8: Decent Work and Economic Growth/Pekerjaan Baik dan Kemajuan Ekonomi",
-  "SDG9: Industry, Innovation and Infrastructure/Industri, Inovasi dan Infrastruktur",
-  "SDG10: Reduced Inequalities/Mengurangkan Ketidaksamarataan",
-  "SDG11: Sustainable Cities and Communities/Bandar dan Komuniti Mampan",
-  "SDG12: Responsible Consumption and Production/Penggunaan dan Penghasilan yang Bertanggungjawab",
-  "SDG13: Climate Action/Tindakan Iklim",
-  "SDG14: Life Below Water/Kehidupan di dalam Air",
-  "SDG15: Life on Land/Kehidupan di atas Darat",
-  "SDG16: Peace, Justice and Strong Institutions/Keamanan, Keadilan dan Institusi yang Kukuh",
-  "SDG17: Partnerships for the Goals/Rakan Kerjasama untuk Matlamat",
-];
-const SDG_MAX_SELECTION = 2; // The official template only has 2 SDG boxes.
-
-function fmtDate(d: string | null) {
-  if (!d) return "";
-  return d.slice(0, 10);
-}
 function fmtDateDisplay(d: Date | null) {
   if (!d) return "Belum ditetapkan";
   return new Date(d).toLocaleDateString("ms-MY");
@@ -65,10 +35,6 @@ function splitBilingual(combined: string | null): { bm: string; en: string } {
   return { bm: first ?? "", en: rest.join("\n") };
 }
 
-// Auto-saves when focus leaves the whole section (not on every field-to-
-// field tab), so there's no separate "Simpan" button to click — content
-// saves quietly as the user works, and is finalised for real when the
-// draft is sent for review.
 function useAutoSaveOnBlur(readOnly: boolean) {
   return (e: React.FocusEvent<HTMLFormElement>) => {
     if (readOnly) return;
@@ -103,9 +69,6 @@ function SaveStatus({ state, isPending }: { state: SaveBasicInfoState; isPending
   }
   return null;
 }
-
-// ---- Part 1: Items 1 (classification) – 6 ---------------------------
-// Rendered BEFORE the CLO section, matching official item order.
 
 export function BasicInfoFormPart1({
   versionId,
@@ -207,9 +170,6 @@ export function BasicInfoFormPart1({
     </form>
   );
 }
-
-// ---- Part 2: Item 9 (Transferable Skills) + Items 11–15 ---------------
-// Rendered AFTER the SLT/assessment sections, matching official item order.
 
 export function BasicInfoFormPart2({
   versionId,
@@ -343,31 +303,24 @@ export function BasicInfoFormPart2({
         </p>
         <label className="mt-2 flex items-center gap-2 text-sm text-foreground">
           <input type="checkbox" name="aiElement" defaultChecked={initial.aiElement} disabled={readOnly} />
-          <span>
-            <span className="italic text-primary">Yes</span>/Ya
-          </span>
+          <span><span className="italic text-primary">Yes</span>/Ya</span>
         </label>
       </div>
 
-      {/* Item 15 — derived automatically from the workflow, not typed. */}
       <div>
         <BilingualLabel en="Latest Approval Date" ms="Tarikh Kelulusan Terkini" />
         <p className="mt-1 text-xs text-muted-foreground">
-          Ditetapkan automatik apabila draf diluluskan/diterbitkan &mdash; tidak boleh ditaip terus.
+          Ditetapkan automatik oleh aliran kerja APPROVE/PUBLISH &mdash; bukan input pengguna.
         </p>
         <div className="mt-1.5 grid grid-cols-2 gap-4">
           <div>
-            <p className="text-xs text-muted-foreground">
-              <span className="italic text-primary">Faculty</span>/Fakulti
-            </p>
+            <p className="text-xs text-muted-foreground"><span className="italic text-primary">Faculty</span>/Fakulti</p>
             <div className="mt-1 rounded-md border border-input bg-muted/40 px-3 py-2 text-sm text-foreground">
               {fmtDateDisplay(initial.facultyApprovalDate)}
             </div>
           </div>
           <div>
-            <p className="text-xs text-muted-foreground">
-              <span className="italic text-primary">Senate</span>/Senat
-            </p>
+            <p className="text-xs text-muted-foreground"><span className="italic text-primary">Senate</span>/Senat</p>
             <div className="mt-1 rounded-md border border-input bg-muted/40 px-3 py-2 text-sm text-foreground">
               {fmtDateDisplay(initial.senateApprovalDate)}
             </div>
@@ -384,20 +337,12 @@ export function BasicInfoFormPart2({
           className="mt-0.5"
         />
         <span>
-          <span className="italic text-primary">
-            Industrial Training/Clinical Placement using 50% ELT
-          </span>
+          <span className="italic text-primary">Industrial Training/Clinical Placement using 50% ELT</span>
           /Latihan Industri/Penempatan Klinikal menggunakan 50% ELT
         </span>
       </label>
 
       {!readOnly && <SaveStatus state={state} isPending={isPending} />}
-
-      {/* Hidden fields keep unused-but-required date inputs out of the
-          form entirely — nothing to submit for Item 15 since it's
-          derived, not entered. */}
-      <input type="hidden" name="facultyApprovalDate" value={fmtDate(initial.facultyApprovalDate?.toString() ?? null)} />
-      <input type="hidden" name="senateApprovalDate" value={fmtDate(initial.senateApprovalDate?.toString() ?? null)} />
     </form>
   );
 }
@@ -405,7 +350,12 @@ export function BasicInfoFormPart2({
 function Field({
   labelEn, labelMs, name, defaultValue, readOnly, type = "text",
 }: {
-  labelEn: string; labelMs: string; name: string; defaultValue: string; readOnly: boolean; type?: string;
+  labelEn: string;
+  labelMs: string;
+  name: string;
+  defaultValue: string;
+  readOnly: boolean;
+  type?: string;
 }) {
   return (
     <div>
@@ -424,7 +374,12 @@ function Field({
 function CheckboxGroup({
   labelEn, labelMs, name, options, selected, readOnly,
 }: {
-  labelEn: string; labelMs: string; name: string; options: string[]; selected: string[]; readOnly: boolean;
+  labelEn: string;
+  labelMs: string;
+  name: string;
+  options: readonly string[];
+  selected: string[];
+  readOnly: boolean;
 }) {
   return (
     <div>
