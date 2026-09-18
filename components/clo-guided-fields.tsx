@@ -9,7 +9,7 @@ import {
   TAXONOMY_LEVELS,
   type TaxonomyDomainKey,
 } from "@/lib/taxonomy-data";
-import { getPloCloGuidance } from "@/lib/plo-clo-master-data";
+import { getPloCloGuidance, PLO_CLO_MASTER } from "@/lib/plo-clo-master-data";
 
 type Plo = { id: string; orderNumber: number; textMs: string };
 
@@ -104,7 +104,7 @@ export function CloGuidedFields({
               <button
                 key={plo.id}
                 type="button"
-                title={plo.textMs}
+                title={PLO_CLO_MASTER[plo.orderNumber]?.learningOutcomeDomain ?? plo.textMs}
                 aria-pressed={selected}
                 onClick={() => togglePlo(plo.id)}
                 className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-[background-color,border-color,color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97] ${
@@ -189,7 +189,7 @@ export function CloGuidedFields({
           <div className="mt-2 rounded-md border border-border bg-muted/20 p-3 text-xs">
             <p className="font-medium text-foreground">
               Cadangan kata kerja untuk{" "}
-              {TAXONOMY_CODE_PREFIX[domain as TaxonomyDomainKey]}
+              {TAXONOMY_CODE_PREFIX[effectiveDomain as TaxonomyDomainKey]}
               {selectedLevelInfo.level} ({selectedLevelInfo.name}):
             </p>
             <p className="mt-1 text-muted-foreground">
