@@ -91,17 +91,19 @@ export async function GET(
     // in the separate grid below, see the block further down).
     let text = clo.text;
     if (clo.taxonomyDomain && clo.taxonomyLevel) {
-      const ploRefs = clo.mappedPloIds
+      const ploNumber = clo.mappedPloIds
         .map((id) => ploIdToOrderNumber.get(id))
-        .filter((n): n is number => n != null)
-        .map((n) => `PLO${n}`)
-        .join(", ");
-      text += ` (${taxonomyCode(clo.taxonomyDomain, clo.taxonomyLevel)}${ploRefs ? `; ${ploRefs}` : ""})`;
+        .find((n): n is number => n != null);
+      const ploRef = ploNumber ? `PLO${ploNumber}` : "";
+      text += ` (${taxonomyCode(clo.taxonomyDomain, clo.taxonomyLevel)}${ploRef ? `; ${ploRef}` : ""})`;
     }
     set(TABLE4_CELLS.cloTextCells[i], text);
   });
 
   // ---- Item 8: CLO-PLO mapping, teaching/assessment methods ----
+  // Keep the official sample template structure exactly as-is: no row/column,
+  // merge, formula, style, or cell-map changes. Only write current system data
+  // into the existing designated cells.
   table4.clos.slice(0, TABLE4_CELLS.cloMappingRows.length).forEach((clo, i) => {
     const row = TABLE4_CELLS.cloMappingRows[i];
     for (const ploId of clo.mappedPloIds) {
@@ -122,17 +124,25 @@ export async function GET(
   // still gets its own row, stacking down (row 37 -> 38 -> 39).
   const mqfColumnNextRowIndex: Record<string, number> = {};
   table4.clos.forEach((clo) => {
-    for (const ploId of clo.mappedPloIds) {
-      const ploNumber = ploIdToOrderNumber.get(ploId);
-      if (!ploNumber || ploNumber < 1 || ploNumber > TABLE4_CELLS.ploTickColumns.length) continue;
-      const [codeText] = deriveMqfClusters([ploNumber]);
-      if (!codeText) continue;
-      const col = TABLE4_CELLS.ploTickColumns[ploNumber - 1];
-      const idx = mqfColumnNextRowIndex[col] ?? 0;
-      if (idx >= MQF_CLUSTER_GRID_ROWS.length) continue; // template only has 3 rows
-      set(`${col}${MQF_CLUSTER_GRID_ROWS[idx]}`, codeText);
-      mqfColumnNextRowIndex[col] = idx + 1;
+    const ploNumber = clo.mappedPloIds
+      .map((id) => ploIdToOrderNumber.get(id))
+      .find((n): n is number => n != null);
+    if (
+      !ploNumber ||
+      ploNumber < 1 ||
+      ploNumber > TABLE4_CELLS.ploTickColumns.length
+    ) {
+      return;
     }
+
+    const [codeText] = deriveMqfClusters([ploNumber]);
+    if (!codeText) return;
+
+    const col = TABLE4_CELLS.ploTickColumns[ploNumber - 1];
+    const idx = mqfColumnNextRowIndex[col] ?? 0;
+    if (idx >= MQF_CLUSTER_GRID_ROWS.length) return; // sample template has 3 rows
+    set(`${col}${MQF_CLUSTER_GRID_ROWS[idx]}`, codeText);
+    mqfColumnNextRowIndex[col] = idx + 1;
   });
 
   // ---- Item 9: transferable skills ----
