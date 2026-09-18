@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useRef, useState } from "react";
 import {
   saveBasicInfoAction,
   type SaveBasicInfoState,
@@ -96,6 +96,7 @@ export function BasicInfoFormPart1({
   const [state, formAction, isPending] = useActionState(saveBasicInfoAction, initialState);
   const synopsisSplit = splitBilingual(initial.synopsis);
   const handleBlur = useAutoSaveOnBlur(readOnly);
+  const [classification, setClassification] = useState(initial.classification ?? "");
 
   return (
     <form action={formAction} onBlur={handleBlur} className="space-y-5">
@@ -156,7 +157,8 @@ export function BasicInfoFormPart1({
           <BilingualLabel en="Course Classification" ms="Klasifikasi Kursus" />
           <select
             name="classification"
-            defaultValue={initial.classification ?? ""}
+            value={classification}
+            onChange={(event) => setClassification(event.target.value)}
             disabled={readOnly}
             className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary disabled:opacity-60"
           >
