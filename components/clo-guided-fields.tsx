@@ -89,10 +89,10 @@ export function CloGuidedFields({
       <div>
         <BilingualLabel
           en="Programme Learning Outcome (PLO)"
-          ms="Pemetaan Hasil Pembelajaran Program (PLO)"
+          ms="Hasil Pembelajaran Program (HPP)"
         />
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Pilih satu PLO sahaja. Sistem akan menapis domain, tahap taksonomi dan
+          Pilih satu PLO/HPP sahaja. Sistem akan menapis domain, tahap taksonomi dan
           kaedah yang sesuai berdasarkan master data.
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
@@ -112,7 +112,7 @@ export function CloGuidedFields({
                 }`}
               >
                 {selected && <span aria-hidden>✓</span>}
-                PLO{plo.orderNumber}
+                PLO{plo.orderNumber}/HPP{plo.orderNumber}
               </button>
             );
           })}
@@ -126,7 +126,7 @@ export function CloGuidedFields({
             {guidance.entries
               .map(
                 ({ number, entry }) =>
-                  `PLO${number} — ${entry.learningOutcomeDomain}`
+                  `PLO${number}/HPP${number} — ${entry.learningOutcomeDomain}`
               )
               .join("; ")}
           </p>

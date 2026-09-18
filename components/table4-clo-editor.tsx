@@ -309,7 +309,7 @@ function CloRow({
               className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary"
             >
               <GraduationCap className="size-3.5" aria-hidden />
-              PLO{primaryPlo.orderNumber}
+              PLO{primaryPlo.orderNumber}/HPP{primaryPlo.orderNumber}
             </span>
           )}
 
