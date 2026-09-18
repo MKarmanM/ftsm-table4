@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { BilingualLabel } from "@/components/table4-bilingual-label";
 import { TaxonomyReferenceLink } from "@/components/taxonomy-reference-modal";
 import {
@@ -50,43 +50,32 @@ export function CloGuidedFields({
     [selectedPloNumbers]
   );
 
-  useEffect(() => {
-    const domains = guidance.taxonomyDomains;
-    if (domains.length === 1) {
-      setDomain(domains[0]);
-    } else if (domain && !domains.includes(domain)) {
-      setDomain("");
-    }
+  const effectiveDomain: TaxonomyDomainKey | "" =
+    guidance.taxonomyDomains.length === 1
+      ? guidance.taxonomyDomains[0]
+      : domain && guidance.taxonomyDomains.includes(domain)
+        ? domain
+        : "";
 
-    if (teachingMethod && !guidance.teachingMethods.includes(teachingMethod)) {
-      setTeachingMethod("");
-    }
-    if (
-      assessmentMethod &&
-      !guidance.assessmentMethods.includes(assessmentMethod)
-    ) {
-      setAssessmentMethod("");
-    }
-  }, [
-    assessmentMethod,
-    domain,
-    guidance.assessmentMethods,
-    guidance.taxonomyDomains,
-    guidance.teachingMethods,
-    teachingMethod,
-  ]);
+  const allowedLevels = effectiveDomain
+    ? guidance.taxonomyLevels[effectiveDomain] ?? []
+    : [];
 
-  const allowedLevels = domain ? guidance.taxonomyLevels[domain] ?? [] : [];
+  const effectiveLevel =
+    level && allowedLevels.includes(Number(level)) ? level : "";
 
-  useEffect(() => {
-    if (level && !allowedLevels.includes(Number(level))) {
-      setLevel("");
-    }
-  }, [allowedLevels, level]);
+  const effectiveTeachingMethod = guidance.teachingMethods.includes(teachingMethod)
+    ? teachingMethod
+    : "";
+
+  const effectiveAssessmentMethod =
+    guidance.assessmentMethods.includes(assessmentMethod)
+      ? assessmentMethod
+      : "";
 
   const selectedLevelInfo =
-    domain && level
-      ? TAXONOMY_LEVELS[domain].find((item) => item.level === Number(level))
+    effectiveDomain && effectiveLevel
+      ? TAXONOMY_LEVELS[effectiveDomain].find((item) => item.level === Number(effectiveLevel))
       : null;
 
   const togglePlo = (id: string) => {
@@ -155,7 +144,7 @@ export function CloGuidedFields({
         <div className="mt-1.5 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <select
             name="taxonomyDomain"
-            value={domain}
+            value={effectiveDomain}
             disabled={guidance.taxonomyDomains.length === 0}
             onChange={(event) => {
               setDomain(event.target.value as TaxonomyDomainKey | "");
@@ -172,8 +161,8 @@ export function CloGuidedFields({
           </select>
           <select
             name="taxonomyLevel"
-            value={level}
-            disabled={!domain || allowedLevels.length === 0}
+            value={effectiveLevel}
+            disabled={!effectiveDomain || allowedLevels.length === 0}
             onChange={(event) =>
               setLevel(event.target.value ? Number(event.target.value) : "")
             }
@@ -181,12 +170,12 @@ export function CloGuidedFields({
           >
             <option value="">&mdash; Pilih Tahap &mdash;</option>
             {allowedLevels.map((allowedLevel) => {
-              const info = TAXONOMY_LEVELS[domain as TaxonomyDomainKey].find(
+              const info = TAXONOMY_LEVELS[effectiveDomain as TaxonomyDomainKey].find(
                 (item) => item.level === allowedLevel
               );
               return (
                 <option key={allowedLevel} value={allowedLevel}>
-                  {TAXONOMY_CODE_PREFIX[domain as TaxonomyDomainKey]}
+                  {TAXONOMY_CODE_PREFIX[effectiveDomain as TaxonomyDomainKey]}
                   {allowedLevel}
                   {info ? ` — ${info.name}` : ""}
                 </option>
@@ -194,7 +183,7 @@ export function CloGuidedFields({
             })}
           </select>
         </div>
-        <TaxonomyReferenceLink domain={domain} />
+        <TaxonomyReferenceLink domain={effectiveDomain} />
 
         {selectedLevelInfo && (
           <div className="mt-2 rounded-md border border-border bg-muted/20 p-3 text-xs">
@@ -216,7 +205,7 @@ export function CloGuidedFields({
           <BilingualLabel en="Teaching Method" ms="Kaedah Penyampaian" />
           <select
             name="teachingMethods"
-            value={teachingMethod}
+            value={effectiveTeachingMethod}
             disabled={guidance.teachingMethods.length === 0}
             onChange={(event) => setTeachingMethod(event.target.value)}
             className={selectClass}
@@ -233,7 +222,7 @@ export function CloGuidedFields({
           <BilingualLabel en="Assessment Method" ms="Kaedah Penilaian" />
           <select
             name="assessmentMethods"
-            value={assessmentMethod}
+            value={effectiveAssessmentMethod}
             disabled={guidance.assessmentMethods.length === 0}
             onChange={(event) => setAssessmentMethod(event.target.value)}
             className={selectClass}
