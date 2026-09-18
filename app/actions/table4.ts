@@ -185,7 +185,7 @@ export async function saveBasicInfoAction(
       specialRequirements: String(formData.get("specialRequirements") ?? "") || null,
       referencesText: String(formData.get("referencesText") ?? "") || null,
       ...mappingValidation.value,
-      aiElement: formData.get("aiElement") === "on",
+      aiElement: String(formData.get("aiElement") ?? "false") === "true",
       isIndustrialTraining50Elt: formData.get("isIndustrialTraining50Elt") === "on",
     };
   }
