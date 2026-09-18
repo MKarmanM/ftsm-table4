@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { buttonVariants } from "@/components/ui/button";
 
-export function ExportMenu({ versionId }: { versionId: string }) {
+export function ExportMenu({ courseId, versionId }: { courseId: string; versionId: string }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -27,16 +27,16 @@ export function ExportMenu({ versionId }: { versionId: string }) {
       {open && (
         <div className="absolute right-0 z-10 mt-1 w-44 overflow-hidden rounded-md border border-border bg-card shadow-sm">
           <a
-            href={`/api/export/${versionId}`}
+            href={`/courses/${courseId}/versions/${versionId}/cetak?export=word`}
             className="block px-3 py-2 text-sm text-foreground hover:bg-muted"
           >
-            Muat Turun Word
+            Pratonton & Eksport Word
           </a>
           <a
-            href={`/api/export-excel/${versionId}`}
+            href={`/courses/${courseId}/versions/${versionId}/cetak?export=excel`}
             className="block border-t border-border px-3 py-2 text-sm text-foreground hover:bg-muted"
           >
-            Muat Turun Excel
+            Pratonton & Eksport Excel
           </a>
         </div>
       )}
