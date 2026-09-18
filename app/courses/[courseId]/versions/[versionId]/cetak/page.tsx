@@ -83,6 +83,10 @@ export default async function PrintVersionPage({
         </div>
       </div>
 
+      {exportFormat === "excel" ? (
+        <ExcelSpreadsheetPreview table4={table4} />
+      ) : (
+        <>
       <div className="border-b-2 border-foreground pb-4">
         <p className="text-xs font-semibold tracking-wide uppercase">
           Universiti Kebangsaan Malaysia
@@ -306,7 +310,345 @@ export default async function PrintVersionPage({
         Dijana pada {new Date().toLocaleString("ms-MY")} melalui Sistem
         Pengurusan Proforma Kursus FTSM.
       </p>
+        </>
+      )}
     </div>
+  );
+}
+
+
+type Table4Detail = NonNullable<Awaited<ReturnType<typeof getTable4Detail>>>;
+
+function ExcelCell({
+  children,
+  className = "",
+  colSpan,
+}: {
+  children?: React.ReactNode;
+  className?: string;
+  colSpan?: number;
+}) {
+  return (
+    <td
+      colSpan={colSpan}
+      className={`min-w-16 border border-slate-300 bg-white px-2 py-1.5 align-top text-[11px] text-slate-900 ${className}`}
+    >
+      {children ?? ""}
+    </td>
+  );
+}
+
+function ExcelRowNumber({ value }: { value: number | string }) {
+  return (
+    <th className="w-10 min-w-10 border border-slate-300 bg-slate-100 px-1.5 py-1 text-center text-[10px] font-medium text-slate-500">
+      {value}
+    </th>
+  );
+}
+
+function ExcelSpreadsheetPreview({ table4 }: { table4: Table4Detail }) {
+  const ploById = new Map(table4.programmePlos.map((plo) => [plo.id, plo]));
+  const continuous = table4.assessments.filter((item) => item.phase === "CONTINUOUS");
+  const final = table4.assessments.filter((item) => item.phase === "FINAL");
+
+  const sltRows = table4.topics.slice(0, 20);
+  const cloRows = table4.clos.slice(0, 8);
+
+  const mappedPloNumber = (clo: Table4Detail["clos"][number]) =>
+    clo.mappedPloIds
+      .map((id) => ploById.get(id)?.orderNumber)
+      .find((value): value is number => value != null);
+
+  const spreadsheetHeader = (letters: string[]) => (
+    <thead>
+      <tr>
+        <th className="sticky left-0 z-10 w-10 min-w-10 border border-slate-300 bg-slate-200" />
+        {letters.map((letter) => (
+          <th
+            key={letter}
+            className="min-w-20 border border-slate-300 bg-slate-200 px-2 py-1 text-center text-[10px] font-semibold text-slate-600"
+          >
+            {letter}
+          </th>
+        ))}
+      </tr>
+    </thead>
+  );
+
+  return (
+    <div className="space-y-6">
+      <div className="rounded-lg border border-slate-300 bg-slate-50 p-3">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold text-slate-900">
+              Pratonton Worksheet Excel — FORM
+            </p>
+            <p className="text-xs text-slate-500">
+              Pratonton ini meniru struktur utama template Table 4. Fail .xlsx sebenar kekal menggunakan template rasmi/sample asal.
+            </p>
+          </div>
+          <span className="rounded border border-slate-300 bg-white px-2 py-1 font-mono text-[10px] text-slate-500">
+            Sheet: FORM
+          </span>
+        </div>
+
+        <div className="overflow-x-auto rounded border border-slate-300 bg-white">
+          <table className="border-collapse font-sans">
+            {spreadsheetHeader(["D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "Q", "R", "S", "T", "U", "V", "W", "X"])}
+            <tbody>
+              <tr>
+                <ExcelRowNumber value={5} />
+                <ExcelCell className="bg-slate-50 font-semibold">1</ExcelCell>
+                <ExcelCell className="bg-slate-50 font-semibold">Nama Kursus</ExcelCell>
+                <ExcelCell className="min-w-[420px] font-medium" colSpan={19}>
+                  {table4.course.nameMs}
+                </ExcelCell>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <ExcelSection title="Maklumat Asas — sekitar row 5–14">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              <th className="w-12 border border-slate-300 bg-slate-200 px-2 py-1 text-[10px] text-slate-600">Row</th>
+              <th className="border border-slate-300 bg-slate-200 px-2 py-1 text-left text-[10px] text-slate-600">Item</th>
+              <th className="border border-slate-300 bg-slate-200 px-2 py-1 text-left text-[10px] text-slate-600">Nilai dalam worksheet</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[
+              [5, "Nama Kursus", table4.course.nameMs],
+              [6, "Kod Kursus", table4.course.code],
+              [7, "Klasifikasi", table4.classification ?? "—"],
+              [8, "Sinopsis", table4.synopsis || "—"],
+              [9, "Staf Akademik", table4.academicStaffNames.join(", ") || "—"],
+              [12, "Tahun / Semester", `${table4.yearOffered ?? "—"} / ${table4.semesterOffered ?? "—"}`],
+              [13, "Nilai Kredit", `${table4.course.creditHours} (formula template)`],
+              [14, "Pra-syarat", table4.prerequisite || "Tiada"],
+            ].map(([row, label, value]) => (
+              <tr key={String(row)}>
+                <ExcelRowNumber value={row} />
+                <ExcelCell className="font-medium">{label}</ExcelCell>
+                <ExcelCell className="min-w-[520px]">{value}</ExcelCell>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </ExcelSection>
+
+      <ExcelSection title="Item 7 — CLO / HPK (row 16–23)">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              <th className="w-12 border border-slate-300 bg-slate-200 px-2 py-1 text-[10px] text-slate-600">Row</th>
+              <th className="border border-slate-300 bg-slate-200 px-2 py-1 text-[10px] text-slate-600">F</th>
+              <th className="min-w-[600px] border border-slate-300 bg-slate-200 px-2 py-1 text-left text-[10px] text-slate-600">H — CLO / HPK</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 8 }, (_, index) => {
+              const clo = cloRows[index];
+              const ploNo = clo ? mappedPloNumber(clo) : undefined;
+              const taxonomy =
+                clo?.taxonomyDomain && clo.taxonomyLevel
+                  ? taxonomyCode(clo.taxonomyDomain, clo.taxonomyLevel)
+                  : "";
+              return (
+                <tr key={index}>
+                  <ExcelRowNumber value={16 + index} />
+                  <ExcelCell className="font-medium">CLO{index + 1}/HPK{index + 1}</ExcelCell>
+                  <ExcelCell>
+                    {clo
+                      ? `${clo.text}${taxonomy ? ` (${taxonomy}${ploNo ? `; PLO${ploNo}` : ""})` : ""}`
+                      : ""}
+                  </ExcelCell>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </ExcelSection>
+
+      <ExcelSection title="Item 8 — Pemetaan CLO–PLO, Kaedah Penyampaian & Penilaian (row 29–36)">
+        <div className="overflow-x-auto">
+          <table className="border-collapse">
+            <thead>
+              <tr>
+                <th className="w-12 border border-slate-300 bg-slate-200 px-2 py-1 text-[10px] text-slate-600">Row</th>
+                <th className="min-w-20 border border-slate-300 bg-slate-200 px-2 py-1 text-[10px] text-slate-600">CLO</th>
+                {Array.from({ length: 11 }, (_, i) => (
+                  <th key={i} className="min-w-12 border border-slate-300 bg-slate-200 px-1 py-1 text-[10px] text-slate-600">
+                    PLO{i + 1}
+                  </th>
+                ))}
+                <th className="min-w-48 border border-slate-300 bg-slate-200 px-2 py-1 text-left text-[10px] text-slate-600">R — Penyampaian</th>
+                <th className="min-w-48 border border-slate-300 bg-slate-200 px-2 py-1 text-left text-[10px] text-slate-600">W — Penilaian</th>
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: 8 }, (_, index) => {
+                const clo = cloRows[index];
+                const ploNo = clo ? mappedPloNumber(clo) : undefined;
+                return (
+                  <tr key={index}>
+                    <ExcelRowNumber value={29 + index} />
+                    <ExcelCell className="font-medium">CLO{index + 1}</ExcelCell>
+                    {Array.from({ length: 11 }, (_, i) => (
+                      <ExcelCell key={i} className="text-center font-semibold">
+                        {ploNo === i + 1 ? "√" : ""}
+                      </ExcelCell>
+                    ))}
+                    <ExcelCell>{clo?.teachingMethods ?? ""}</ExcelCell>
+                    <ExcelCell>{clo?.assessmentMethods ?? ""}</ExcelCell>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </ExcelSection>
+
+      <ExcelSection title="Mapping with MQF Cluster of Learning Outcomes (row 37–39)">
+        <div className="overflow-x-auto">
+          <table className="border-collapse">
+            <thead>
+              <tr>
+                <th className="w-12 border border-slate-300 bg-slate-200 px-2 py-1 text-[10px] text-slate-600">Row</th>
+                {Array.from({ length: 11 }, (_, i) => (
+                  <th key={i} className="min-w-20 border border-slate-300 bg-slate-200 px-2 py-1 text-[10px] text-slate-600">
+                    PLO{i + 1}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {[37, 38, 39].map((row, rowIndex) => (
+                <tr key={row}>
+                  <ExcelRowNumber value={row} />
+                  {Array.from({ length: 11 }, (_, ploIndex) => {
+                    const codes = cloRows
+                      .filter((clo) => mappedPloNumber(clo) === ploIndex + 1)
+                      .map(() => deriveMqfClusters([ploIndex + 1])[0])
+                      .filter(Boolean);
+                    return (
+                      <ExcelCell key={ploIndex} className="text-center font-medium">
+                        {codes[rowIndex] ?? ""}
+                      </ExcelCell>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </ExcelSection>
+
+      <ExcelSection title="Item 10 — Topik / SLT (row 60–79)">
+        <div className="overflow-x-auto">
+          <table className="border-collapse">
+            <thead>
+              <tr>
+                {["Row", "Minggu", "Topik", "CLO", "M-L", "N-T", "O-P", "P-O", "Q-L", "R-T", "S-P", "T-O", "U-Kendiri"].map((label) => (
+                  <th key={label} className="min-w-16 border border-slate-300 bg-slate-200 px-2 py-1 text-[10px] text-slate-600">
+                    {label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {Array.from({ length: Math.max(6, sltRows.length) }, (_, index) => {
+                const topic = sltRows[index];
+                return (
+                  <tr key={index}>
+                    <ExcelRowNumber value={60 + index} />
+                    <ExcelCell className="text-center">{index + 1}</ExcelCell>
+                    <ExcelCell className="min-w-[300px]">{topic?.topicMs ?? ""}</ExcelCell>
+                    <ExcelCell className="text-center">{topic?.cloRef ?? ""}</ExcelCell>
+                    <ExcelCell className="text-center">{topic?.hours.f2fPhysical.l || ""}</ExcelCell>
+                    <ExcelCell className="text-center">{topic?.hours.f2fPhysical.t || ""}</ExcelCell>
+                    <ExcelCell className="text-center">{topic?.hours.f2fPhysical.p || ""}</ExcelCell>
+                    <ExcelCell className="text-center">{topic?.hours.f2fPhysical.o || ""}</ExcelCell>
+                    <ExcelCell className="text-center">{topic?.hours.f2fOnline.l || ""}</ExcelCell>
+                    <ExcelCell className="text-center">{topic?.hours.f2fOnline.t || ""}</ExcelCell>
+                    <ExcelCell className="text-center">{topic?.hours.f2fOnline.p || ""}</ExcelCell>
+                    <ExcelCell className="text-center">{topic?.hours.f2fOnline.o || ""}</ExcelCell>
+                    <ExcelCell className="text-center">{topic?.hours.independent || ""}</ExcelCell>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </ExcelSection>
+
+      <ExcelAssessmentPreview title="Penilaian Berterusan — row 83–87" startRow={83} items={continuous} />
+      <ExcelAssessmentPreview title="Penilaian Akhir — row 91–95" startRow={91} items={final} />
+
+      <p className="text-xs text-slate-500">
+        Nota: paparan ini ialah pratonton browser bergaya spreadsheet. Fail Excel sebenar masih dijana daripada template rasmi/sample asal dengan formula, merge dan format asal yang dikekalkan.
+      </p>
+    </div>
+  );
+}
+
+function ExcelSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section className="rounded-lg border border-slate-300 bg-slate-50 p-3">
+      <p className="mb-2 text-xs font-semibold text-slate-700">{title}</p>
+      <div className="overflow-x-auto rounded border border-slate-300 bg-white">
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function ExcelAssessmentPreview({
+  title,
+  startRow,
+  items,
+}: {
+  title: string;
+  startRow: number;
+  items: Table4Detail["assessments"];
+}) {
+  return (
+    <ExcelSection title={title}>
+      <table className="border-collapse">
+        <thead>
+          <tr>
+            {["Row", "Nama Penilaian", "Wajaran %", "M-L", "N-T", "O-P", "P-O", "Q-L", "R-T", "S-P", "T-O", "U-Kendiri"].map((label) => (
+              <th key={label} className="min-w-16 border border-slate-300 bg-slate-200 px-2 py-1 text-[10px] text-slate-600">
+                {label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {Array.from({ length: 5 }, (_, index) => {
+            const item = items[index];
+            return (
+              <tr key={index}>
+                <ExcelRowNumber value={startRow + index} />
+                <ExcelCell className="min-w-[260px]">{item?.nameMs ?? ""}</ExcelCell>
+                <ExcelCell className="text-center">{item?.weightagePercent ?? ""}</ExcelCell>
+                <ExcelCell className="text-center">{item?.hours.f2fPhysical.l || ""}</ExcelCell>
+                <ExcelCell className="text-center">{item?.hours.f2fPhysical.t || ""}</ExcelCell>
+                <ExcelCell className="text-center">{item?.hours.f2fPhysical.p || ""}</ExcelCell>
+                <ExcelCell className="text-center">{item?.hours.f2fPhysical.o || ""}</ExcelCell>
+                <ExcelCell className="text-center">{item?.hours.f2fOnline.l || ""}</ExcelCell>
+                <ExcelCell className="text-center">{item?.hours.f2fOnline.t || ""}</ExcelCell>
+                <ExcelCell className="text-center">{item?.hours.f2fOnline.p || ""}</ExcelCell>
+                <ExcelCell className="text-center">{item?.hours.f2fOnline.o || ""}</ExcelCell>
+                <ExcelCell className="text-center">{item?.hours.independent || ""}</ExcelCell>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </ExcelSection>
   );
 }
 
