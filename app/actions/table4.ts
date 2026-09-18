@@ -239,8 +239,8 @@ async function validateGuidedCloInput(
   | { ok: false; error: string }
 > {
   const programmePloIds = selectedProgrammePloIds(formData);
-  if (programmePloIds.length === 0) {
-    return { ok: false, error: "Pilih sekurang-kurangnya satu PLO dahulu." };
+  if (programmePloIds.length !== 1) {
+    return { ok: false, error: "Pilih satu PLO sahaja untuk setiap CLO." };
   }
 
   const selectedPlos = await prisma.programmePlo.findMany({
