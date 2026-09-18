@@ -8,6 +8,7 @@ import {
   type CloFormState,
 } from "@/app/actions/table4";
 import { Button } from "@/components/ui/button";
+import { BookOpen, ClipboardCheck, GraduationCap, Layers3, Pencil, Trash2 } from "lucide-react";
 import { BilingualTextarea } from "@/components/table4-bilingual-label";
 import { CloGuidedFields } from "@/components/clo-guided-fields";
 import { taxonomyCode, type TaxonomyDomainKey } from "@/lib/taxonomy-data";
@@ -232,106 +233,156 @@ function CloRow({
     );
   }
 
+  const primaryPlo = mappedPlos[0];
+  const domainLabel = guidance.entries[0]?.entry.learningOutcomeDomain;
+  const taxonomyLabel =
+    clo.taxonomyDomain && clo.taxonomyLevel
+      ? taxonomyCode(clo.taxonomyDomain, clo.taxonomyLevel)
+      : null;
+  const mqfLabel =
+    derivedMqf.length > 0
+      ? derivedMqf
+          .map((code) => `${code} — ${MQF_CODE_LABEL[code]}`)
+          .join("; ")
+      : null;
+
   return (
-    <li className="rounded-lg border border-border bg-card p-3.5 transition-colors hover:border-primary/15 sm:p-4">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div className="min-w-0">
-          <p className="text-sm font-medium text-foreground">
-            CLO{clo.orderIndex}: {cloTextSplit.bm}
-          </p>
+    <li className="rounded-xl border border-border bg-card p-4 shadow-sm transition-[border-color,box-shadow] hover:border-primary/20 hover:shadow-md sm:p-5">
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-base font-semibold leading-snug text-foreground sm:text-lg">
+              CLO{clo.orderIndex}: {cloTextSplit.bm}
+            </p>
+            {cloTextSplit.en && (
+              <p className="mt-1 text-sm italic text-secondary">
+                {cloTextSplit.en}
+              </p>
+            )}
+          </div>
 
-          {cloTextSplit.en && (
-            <p className="mt-0.5 text-sm italic text-primary">{cloTextSplit.en}</p>
-          )}
-
-          {mappedPlos.length > 0 && (
-            <div className="mt-2 flex flex-wrap gap-1.5">
-              {mappedPlos.map((plo) => (
-                <span
-                  key={plo.id}
-                  title={plo.textMs}
-                  className="inline-flex min-h-7 items-center rounded-full border border-primary/20 bg-primary/5 px-2.5 py-1 text-xs font-semibold text-primary"
+          {!readOnly && (
+            <div className="flex shrink-0 items-center gap-2 self-end sm:self-auto">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setIsEditing(true)}
+                className="gap-1.5"
+              >
+                <Pencil className="size-3.5" aria-hidden />
+                Edit
+              </Button>
+              <form
+                action={removeAction}
+                onSubmit={(event) => {
+                  if (
+                    !confirm(
+                      `Adakah anda pasti mahu membuang CLO${clo.orderIndex} ini?`
+                    )
+                  ) {
+                    event.preventDefault();
+                  }
+                }}
+              >
+                <input type="hidden" name="versionId" value={versionId} />
+                <input type="hidden" name="courseId" value={courseId} />
+                <input type="hidden" name="cloId" value={clo.id} />
+                <Button
+                  type="submit"
+                  variant="destructive"
+                  size="sm"
+                  className="gap-1.5"
                 >
-                  PLO{plo.orderNumber}
-                </span>
-              ))}
+                  <Trash2 className="size-3.5" aria-hidden />
+                  Buang
+                </Button>
+              </form>
             </div>
-          )}
-
-          {guidance.entries.length > 0 && (
-            <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-              Domain hasil pembelajaran:{" "}
-              {guidance.entries
-                .map(
-                  ({ number, entry }) =>
-                    `PLO${number} — ${entry.learningOutcomeDomain}`
-                )
-                .join("; ")}
-            </p>
-          )}
-
-          {(clo.teachingMethods || clo.assessmentMethods) && (
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              {clo.teachingMethods && <>Penyampaian: {clo.teachingMethods}</>}
-              {clo.teachingMethods && clo.assessmentMethods && " · "}
-              {clo.assessmentMethods && <>Penilaian: {clo.assessmentMethods}</>}
-            </p>
-          )}
-
-          {derivedMqf.length > 0 && (
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Kluster MQF:{" "}
-              {derivedMqf
-                .map((code) => `${code} — ${MQF_CODE_LABEL[code]}`)
-                .join("; ")}
-            </p>
-          )}
-
-          {clo.taxonomyDomain && clo.taxonomyLevel && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Taksonomi: {taxonomyCode(clo.taxonomyDomain, clo.taxonomyLevel)}
-            </p>
           )}
         </div>
 
-        {!readOnly && (
-          <div className="flex shrink-0 items-center gap-1.5 self-end sm:self-auto">
-            <Button
-              type="button"
-              variant="ghost"
-              size="xs"
-              onClick={() => setIsEditing(true)}
+        <div className="flex flex-wrap gap-2">
+          {primaryPlo && (
+            <span
+              title={primaryPlo.textMs}
+              className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-primary/20 bg-primary/5 px-3 py-1 text-xs font-semibold text-primary"
             >
-              Edit
-            </Button>
-            <form
-              action={removeAction}
-              onSubmit={(event) => {
-                if (
-                  !confirm(
-                    `Adakah anda pasti mahu membuang CLO${clo.orderIndex} ini?`
-                  )
-                ) {
-                  event.preventDefault();
-                }
-              }}
-            >
-              <input type="hidden" name="versionId" value={versionId} />
-              <input type="hidden" name="courseId" value={courseId} />
-              <input type="hidden" name="cloId" value={clo.id} />
-              <Button type="submit" variant="destructive" size="xs">
-                Buang
-              </Button>
-            </form>
-          </div>
-        )}
+              <GraduationCap className="size-3.5" aria-hidden />
+              PLO{primaryPlo.orderNumber}
+            </span>
+          )}
+
+          {taxonomyLabel && (
+            <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-semibold text-amber-700 dark:text-amber-300">
+              <Layers3 className="size-3.5" aria-hidden />
+              Taksonomi: {taxonomyLabel}
+            </span>
+          )}
+
+          {mqfLabel && (
+            <span className="inline-flex min-h-8 items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+              <BookOpen className="size-3.5" aria-hidden />
+              Kluster MQF: {mqfLabel}
+            </span>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+          <CloInfoTile
+            icon={<BookOpen className="size-5" aria-hidden />}
+            label="Domain Hasil Pembelajaran"
+            value={domainLabel ?? "—"}
+          />
+          <CloInfoTile
+            icon={<GraduationCap className="size-5" aria-hidden />}
+            label="Kaedah Penyampaian"
+            value={clo.teachingMethods ?? "—"}
+          />
+          <CloInfoTile
+            icon={<ClipboardCheck className="size-5" aria-hidden />}
+            label="Kaedah Penilaian"
+            value={clo.assessmentMethods ?? "—"}
+          />
+          <CloInfoTile
+            icon={<Layers3 className="size-5" aria-hidden />}
+            label="Kluster MQF"
+            value={mqfLabel ?? "—"}
+          />
+        </div>
       </div>
 
       {removeState?.error && (
-        <p role="alert" className="mt-2 text-sm text-destructive sm:text-xs">
+        <p role="alert" className="mt-3 text-sm text-destructive sm:text-xs">
           {removeState.error}
         </p>
       )}
     </li>
   );
 }
+
+
+function CloInfoTile({
+  icon,
+  label,
+  value,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className="rounded-lg border border-border/80 bg-muted/20 p-3.5">
+      <div className="flex items-start gap-3">
+        <div className="mt-0.5 shrink-0 text-primary">{icon}</div>
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-secondary">{label}</p>
+          <p className="mt-1 text-sm font-semibold leading-snug text-foreground">
+            {value}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
