@@ -252,10 +252,11 @@ function CloRow({
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <p className="text-base font-semibold leading-snug text-foreground sm:text-lg">
-              CLO{clo.orderIndex}: {cloTextSplit.bm}
+              HPK{clo.orderIndex}: {cloTextSplit.bm}
             </p>
             {cloTextSplit.en && (
               <p className="mt-1 text-sm italic text-secondary">
+                <span className="font-semibold">CLO{clo.orderIndex}:</span>{" "}
                 {cloTextSplit.en}
               </p>
             )}
