@@ -106,12 +106,19 @@ export async function GET(
   // into the existing designated cells.
   table4.clos.slice(0, TABLE4_CELLS.cloMappingRows.length).forEach((clo, i) => {
     const row = TABLE4_CELLS.cloMappingRows[i];
-    for (const ploId of clo.mappedPloIds) {
-      const ploNumber = ploIdToOrderNumber.get(ploId);
-      if (!ploNumber || ploNumber < 1 || ploNumber > TABLE4_CELLS.ploTickColumns.length) continue;
+    const ploNumber = clo.mappedPloIds
+      .map((id) => ploIdToOrderNumber.get(id))
+      .find((n): n is number => n != null);
+
+    if (
+      ploNumber &&
+      ploNumber >= 1 &&
+      ploNumber <= TABLE4_CELLS.ploTickColumns.length
+    ) {
       const col = TABLE4_CELLS.ploTickColumns[ploNumber - 1];
-      set(`${col}${row}`, "\u221a");
+      set(`${col}${row}`, "√");
     }
+
     set(`${TABLE4_CELLS.teachingMethodColumn}${row}`, clo.teachingMethods);
     set(`${TABLE4_CELLS.assessmentMethodColumn}${row}`, clo.assessmentMethods);
   });
