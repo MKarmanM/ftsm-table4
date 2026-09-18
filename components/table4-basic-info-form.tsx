@@ -35,9 +35,14 @@ function splitBilingual(combined: string | null): { bm: string; en: string } {
   return { bm: first ?? "", en: rest.join("\n") };
 }
 
-function useAutoSaveOnBlur(readOnly: boolean) {
+function useAutoSaveOnBlur(
+  readOnly: boolean,
+  skipNames: string[] = []
+) {
   return (e: React.FocusEvent<HTMLFormElement>) => {
     if (readOnly) return;
+    const target = e.target as unknown as { name?: string };
+    if (target.name && skipNames.includes(target.name)) return;
     e.currentTarget.requestSubmit();
   };
 }
@@ -95,11 +100,22 @@ export function BasicInfoFormPart1({
 }) {
   const [state, formAction, isPending] = useActionState(saveBasicInfoAction, initialState);
   const synopsisSplit = splitBilingual(initial.synopsis);
-  const handleBlur = useAutoSaveOnBlur(readOnly);
+  const handleBlur = useAutoSaveOnBlur(readOnly, ["classification"]);
   const [classification, setClassification] = useState(initial.classification ?? "");
+  const formRef = useRef<HTMLFormElement>(null);
+
+  function saveClassification(nextValue: string) {
+    setClassification(nextValue);
+    // The select is controlled. Wait until React commits the new value before
+    // serialising FormData, otherwise an immediate blur can submit the
+    // previous classification.
+    requestAnimationFrame(() => {
+      formRef.current?.requestSubmit();
+    });
+  }
 
   return (
-    <form action={formAction} onBlur={handleBlur} className="space-y-5">
+    <form ref={formRef} action={formAction} onBlur={handleBlur} className="space-y-5">
       <input type="hidden" name="versionId" value={versionId} />
       <input type="hidden" name="courseId" value={courseId} />
       <input type="hidden" name="formPart" value="1" />
@@ -158,7 +174,7 @@ export function BasicInfoFormPart1({
           <select
             name="classification"
             value={classification}
-            onChange={(event) => setClassification(event.target.value)}
+            onChange={(event) => saveClassification(event.target.value)}
             disabled={readOnly}
             className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary disabled:opacity-60"
           >
