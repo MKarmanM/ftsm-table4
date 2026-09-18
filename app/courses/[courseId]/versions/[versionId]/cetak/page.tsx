@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getTable4Detail, computeSltSummary } from "@/lib/table4-detail";
 import { STATUS_LABEL } from "@/lib/courses";
 import { taxonomyCode } from "@/lib/taxonomy-data";
-import { deriveMqfClusters } from "@/lib/mqf-legend";
+import { deriveMqfClusters, MQF_CODE_LABEL } from "@/lib/mqf-legend";
 import { PrintButton } from "@/components/print-button";
 import { getCurrentUser } from "@/lib/auth";
 import { canViewDraft } from "@/lib/permissions";
@@ -130,33 +130,42 @@ export default async function PrintVersionPage({
                       <span className="text-muted-foreground">
                         {" "}
                         ({taxonomyCode(clo.taxonomyDomain, clo.taxonomyLevel)};{" "}
-                        {clo.mappedPloIds
-                          .map((id) => ploByCloId.get(id))
-                          .filter(Boolean)
-                          .map((p) => `PLO${p!.orderNumber}`)
-                          .join(", ")}
+                        {(() => {
+                          const mappedPlo = clo.mappedPloIds
+                            .map((id) => ploByCloId.get(id))
+                            .find(Boolean);
+                          return mappedPlo ? `PLO${mappedPlo.orderNumber}` : "—";
+                        })()}
                         )
                       </span>
                     )}
                     {(() => {
+                      const mappedPlo = clo.mappedPloIds
+                        .map((id) => ploByCloId.get(id))
+                        .find(Boolean);
                       const mqf = deriveMqfClusters(
-                        clo.mappedPloIds
-                          .map((id) => ploByCloId.get(id)?.orderNumber)
-                          .filter((n): n is number => n != null)
+                        mappedPlo ? [mappedPlo.orderNumber] : []
                       );
                       return mqf.length > 0 ? (
                         <div className="text-muted-foreground">
-                          MQF: {mqf.join(", ")}
+                          Kluster MQF:{" "}
+                          {mqf
+                            .map(
+                              (code) =>
+                                `${code} — ${MQF_CODE_LABEL[code] ?? code}`
+                            )
+                            .join(", ")}
                         </div>
                       ) : null;
                     })()}
                   </td>
                   <td className="py-1.5 pr-2">
-                    {clo.mappedPloIds
-                      .map((id) => ploByCloId.get(id))
-                      .filter(Boolean)
-                      .map((p) => `PLO${p!.orderNumber}`)
-                      .join(", ") || "\u2014"}
+                    {(() => {
+                      const mappedPlo = clo.mappedPloIds
+                        .map((id) => ploByCloId.get(id))
+                        .find(Boolean);
+                      return mappedPlo ? `PLO${mappedPlo.orderNumber}` : "\u2014";
+                    })()}
                   </td>
                   <td className="py-1.5 pr-2">{clo.teachingMethods ?? "\u2014"}</td>
                   <td className="py-1.5">{clo.assessmentMethods ?? "\u2014"}</td>

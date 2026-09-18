@@ -15,7 +15,7 @@ import { getCurrentUser } from "@/lib/auth";
 import { getTable4Detail, computeSltSummary } from "@/lib/table4-detail";
 import { STATUS_LABEL } from "@/lib/courses";
 import { taxonomyCode } from "@/lib/taxonomy-data";
-import { deriveMqfClusters } from "@/lib/mqf-legend";
+import { deriveMqfClusters, MQF_CODE_LABEL } from "@/lib/mqf-legend";
 import { canViewDraft } from "@/lib/permissions";
 import { CLASSIFICATION_LABEL } from "@/lib/table4-labels";
 
@@ -115,21 +115,22 @@ export async function GET(
   const ploByCloId = new Map(table4.programmePlos.map((p) => [p.id, p]));
 
   const cloRows = table4.clos.map((clo) => {
-    const ploRefs = clo.mappedPloIds
+    const mappedPlo = clo.mappedPloIds
       .map((id) => ploByCloId.get(id))
-      .filter(Boolean)
-      .map((p) => `PLO${p!.orderNumber}`)
-      .join(", ");
+      .find(Boolean);
+    const ploRefs = mappedPlo ? `PLO${mappedPlo.orderNumber}` : "";
     const taxonomySuffix =
       clo.taxonomyDomain && clo.taxonomyLevel
         ? ` (${taxonomyCode(clo.taxonomyDomain, clo.taxonomyLevel)}; ${ploRefs})`
         : "";
     const mqfCodes = deriveMqfClusters(
-      clo.mappedPloIds
-        .map((id) => ploByCloId.get(id)?.orderNumber)
-        .filter((n): n is number => n != null)
+      mappedPlo ? [mappedPlo.orderNumber] : []
     );
-    const mqfSuffix = mqfCodes.length ? ` [MQF: ${mqfCodes.join(", ")}]` : "";
+    const mqfSuffix = mqfCodes.length
+      ? ` [Kluster MQF: ${mqfCodes
+          .map((code) => `${code} — ${MQF_CODE_LABEL[code] ?? code}`)
+          .join(", ")}]`
+      : "";
     return new TableRow({
       children: [
         `CLO${clo.orderIndex}`,
