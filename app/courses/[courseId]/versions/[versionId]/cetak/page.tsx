@@ -322,12 +322,15 @@ type Table4Detail = NonNullable<Awaited<ReturnType<typeof getTable4Detail>>>;
 function ExcelCell({
   children,
   className = "",
+  colSpan,
 }: {
   children?: React.ReactNode;
   className?: string;
+  colSpan?: number;
 }) {
   return (
     <td
+      colSpan={colSpan}
       className={`min-w-16 border border-slate-300 bg-white px-2 py-1.5 align-top text-[11px] text-slate-900 ${className}`}
     >
       {children ?? ""}
@@ -397,7 +400,7 @@ function ExcelSpreadsheetPreview({ table4 }: { table4: Table4Detail }) {
                 <ExcelRowNumber value={5} />
                 <ExcelCell className="bg-slate-50 font-semibold">1</ExcelCell>
                 <ExcelCell className="bg-slate-50 font-semibold">Nama Kursus</ExcelCell>
-                <ExcelCell className="min-w-[420px] font-medium" colSpan={19 as never}>
+                <ExcelCell className="min-w-[420px] font-medium" colSpan={19}>
                   {table4.course.nameMs}
                 </ExcelCell>
               </tr>
