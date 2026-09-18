@@ -265,8 +265,8 @@ export type CloGuidanceSelection = {
 export function validateCloGuidanceSelection(selection: CloGuidanceSelection):
   | { ok: true }
   | { ok: false; error: string } {
-  if (selection.ploNumbers.length === 0) {
-    return { ok: false, error: "Pilih sekurang-kurangnya satu PLO dahulu." };
+  if (selection.ploNumbers.length !== 1) {
+    return { ok: false, error: "Pilih satu PLO sahaja untuk setiap CLO." };
   }
 
   const guidance = getPloCloGuidance(selection.ploNumbers);
