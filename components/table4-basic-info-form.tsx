@@ -302,12 +302,32 @@ export function BasicInfoFormPart2({
       <div>
         <BilingualLabel en="Artificial Intelligence (AI) Element" ms="Elemen AI" />
         <p className="mt-1 text-xs text-muted-foreground">
-          Tandakan jika kursus mempunyai elemen AI. Jika tiada, biarkan kotak tidak ditanda.
+          Pilih Ya jika kursus mempunyai elemen AI. Jika tiada, pilih Tidak.
         </p>
-        <label className="mt-2 flex items-center gap-2 text-sm text-foreground">
-          <input type="checkbox" name="aiElement" defaultChecked={initial.aiElement} disabled={readOnly} />
-          <span>Ya / Yes</span>
-        </label>
+        <div className="mt-2 flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="radio"
+              name="aiElement"
+              value="true"
+              defaultChecked={initial.aiElement}
+              disabled={readOnly}
+              className="size-4"
+            />
+            <span>Ya / Yes</span>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-foreground">
+            <input
+              type="radio"
+              name="aiElement"
+              value="false"
+              defaultChecked={!initial.aiElement}
+              disabled={readOnly}
+              className="size-4"
+            />
+            <span>Tidak / No</span>
+          </label>
+        </div>
       </div>
 
       <div>
