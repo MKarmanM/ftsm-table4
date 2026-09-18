@@ -103,7 +103,7 @@ export default async function VersionDetailPage({
             >
               Lihat &amp; Cetak
             </Link>
-            <ExportMenu versionId={version.id} />
+            <ExportMenu courseId={version.course.id} versionId={version.id} />
           </div>
         </header>
 
