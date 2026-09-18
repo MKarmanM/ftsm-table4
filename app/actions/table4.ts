@@ -5,6 +5,8 @@ import { getCurrentUser } from "@/lib/auth";
 import { canManageDraft } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
 import { validateControlledMappings } from "@/lib/table4-master-data";
+import { validateCloGuidanceSelection } from "@/lib/plo-clo-master-data";
+import type { TaxonomyDomainKey } from "@/lib/taxonomy-data";
 import {
   Prisma,
   CourseClassification,
@@ -208,6 +210,84 @@ export async function saveBasicInfoAction(
 
 export type CloFormState = { error?: string };
 
+function selectedProgrammePloIds(formData: FormData): string[] {
+  return [
+    ...new Set(
+      formData
+        .getAll("programmePloIds")
+        .map(String)
+        .map((value) => value.trim())
+        .filter(Boolean)
+    ),
+  ];
+}
+
+async function validateGuidedCloInput(
+  formData: FormData,
+  programmeId: string
+): Promise<
+  | {
+      ok: true;
+      value: {
+        programmePloIds: string[];
+        taxonomyDomain: TaxonomyDomain;
+        taxonomyLevel: number;
+        teachingMethods: string;
+        assessmentMethods: string;
+      };
+    }
+  | { ok: false; error: string }
+> {
+  const programmePloIds = selectedProgrammePloIds(formData);
+  if (programmePloIds.length === 0) {
+    return { ok: false, error: "Pilih sekurang-kurangnya satu PLO dahulu." };
+  }
+
+  const selectedPlos = await prisma.programmePlo.findMany({
+    where: {
+      id: { in: programmePloIds },
+      programmeId,
+    },
+    select: { id: true, orderNumber: true },
+  });
+
+  if (selectedPlos.length !== programmePloIds.length) {
+    return { ok: false, error: "PLO yang dipilih tidak sah untuk program ini." };
+  }
+
+  const taxonomyDomainRaw = String(formData.get("taxonomyDomain") ?? "");
+  const taxonomyLevelRaw = String(formData.get("taxonomyLevel") ?? "");
+  const teachingMethods = String(formData.get("teachingMethods") ?? "").trim();
+  const assessmentMethods = String(formData.get("assessmentMethods") ?? "").trim();
+  const taxonomyLevel = taxonomyLevelRaw ? Number(taxonomyLevelRaw) : null;
+
+  const validation = validateCloGuidanceSelection({
+    ploNumbers: selectedPlos.map((plo) => plo.orderNumber),
+    taxonomyDomain: taxonomyDomainRaw
+      ? (taxonomyDomainRaw as TaxonomyDomainKey)
+      : null,
+    taxonomyLevel:
+      taxonomyLevel !== null && Number.isInteger(taxonomyLevel)
+        ? taxonomyLevel
+        : null,
+    teachingMethod: teachingMethods || null,
+    assessmentMethod: assessmentMethods || null,
+  });
+
+  if (!validation.ok) return validation;
+
+  return {
+    ok: true,
+    value: {
+      programmePloIds,
+      taxonomyDomain: taxonomyDomainRaw as TaxonomyDomain,
+      taxonomyLevel: taxonomyLevel as number,
+      teachingMethods,
+      assessmentMethods,
+    },
+  };
+}
+
 export async function addCloAction(
   _prevState: CloFormState,
   formData: FormData
@@ -222,24 +302,32 @@ export async function addCloAction(
   if (!textBm) return { error: "Teks CLO (Bahasa Malaysia) wajib diisi." };
   const text = textEn ? `${textBm}\n${textEn}` : textBm;
 
-  const taxonomyDomainRaw = String(formData.get("taxonomyDomain") ?? "");
-  const taxonomyLevelRaw = String(formData.get("taxonomyLevel") ?? "");
-  const taxonomyDomain = taxonomyDomainRaw ? (taxonomyDomainRaw as TaxonomyDomain) : null;
-  const taxonomyLevel = taxonomyLevelRaw ? Number(taxonomyLevelRaw) : null;
+  const guided = await validateGuidedCloInput(
+    formData,
+    check.course.programmeId
+  );
+  if (!guided.ok) return { error: guided.error };
 
   try {
     await withSerializableRetry(async (tx) => {
       const count = await tx.courseLearningOutcome.count({ where: { versionId } });
-      await tx.courseLearningOutcome.create({
+      const clo = await tx.courseLearningOutcome.create({
         data: {
           versionId,
           orderIndex: count + 1,
           text,
-          teachingMethods: String(formData.get("teachingMethods") ?? "") || null,
-          assessmentMethods: String(formData.get("assessmentMethods") ?? "") || null,
-          taxonomyDomain,
-          taxonomyLevel,
+          teachingMethods: guided.value.teachingMethods,
+          assessmentMethods: guided.value.assessmentMethods,
+          taxonomyDomain: guided.value.taxonomyDomain,
+          taxonomyLevel: guided.value.taxonomyLevel,
         },
+      });
+
+      await tx.cloPloMapping.createMany({
+        data: guided.value.programmePloIds.map((programmePloId) => ({
+          cloId: clo.id,
+          programmePloId,
+        })),
       });
     });
   } catch (error) {
@@ -280,61 +368,47 @@ export async function updateCloAction(
   const check = await assertEditable(versionId);
   if ("error" in check) return { error: check.error };
 
+  const existingClo = await prisma.courseLearningOutcome.findFirst({
+    where: { id: cloId, versionId },
+    select: { id: true },
+  });
+  if (!existingClo) return { error: "CLO tidak sah untuk versi ini." };
+
   const textBm = String(formData.get("textBm") ?? "").trim();
   const textEn = String(formData.get("textEn") ?? "").trim();
   if (!textBm) return { error: "Teks CLO (Bahasa Malaysia) wajib diisi." };
   const text = textEn ? `${textBm}\n${textEn}` : textBm;
 
-  const taxonomyDomainRaw = String(formData.get("taxonomyDomain") ?? "");
-  const taxonomyLevelRaw = String(formData.get("taxonomyLevel") ?? "");
-  const taxonomyDomain = taxonomyDomainRaw ? (taxonomyDomainRaw as TaxonomyDomain) : null;
-  const taxonomyLevel = taxonomyLevelRaw ? Number(taxonomyLevelRaw) : null;
+  const guided = await validateGuidedCloInput(
+    formData,
+    check.course.programmeId
+  );
+  if (!guided.ok) return { error: guided.error };
 
-  const result = await prisma.courseLearningOutcome.updateMany({
-    where: { id: cloId, versionId },
-    data: {
-      text,
-      teachingMethods: String(formData.get("teachingMethods") ?? "") || null,
-      assessmentMethods: String(formData.get("assessmentMethods") ?? "") || null,
-      taxonomyDomain,
-      taxonomyLevel,
-    },
-  });
-  if (result.count === 0) return { error: "CLO tidak sah untuk versi ini." };
+  try {
+    await prisma.$transaction(async (tx) => {
+      await tx.courseLearningOutcome.update({
+        where: { id: cloId },
+        data: {
+          text,
+          teachingMethods: guided.value.teachingMethods,
+          assessmentMethods: guided.value.assessmentMethods,
+          taxonomyDomain: guided.value.taxonomyDomain,
+          taxonomyLevel: guided.value.taxonomyLevel,
+        },
+      });
 
-  revalidateVersion(courseId, versionId);
-  return {};
-}
-
-export async function toggleCloPloMappingAction(
-  _prevState: CloFormState,
-  formData: FormData
-): Promise<CloFormState> {
-  const versionId = String(formData.get("versionId") ?? "");
-  const courseId = String(formData.get("courseId") ?? "");
-  const cloId = String(formData.get("cloId") ?? "");
-  const programmePloId = String(formData.get("programmePloId") ?? "");
-  const check = await assertEditable(versionId);
-  if ("error" in check) return { error: check.error };
-
-  const [clo, programmePlo] = await Promise.all([
-    prisma.courseLearningOutcome.findFirst({ where: { id: cloId, versionId } }),
-    prisma.programmePlo.findFirst({
-      where: { id: programmePloId, programmeId: check.course.programmeId },
-    }),
-  ]);
-  if (!clo || !programmePlo) {
-    return { error: "Pemetaan CLO–PLO tidak sah untuk versi ini." };
-  }
-
-  const existing = await prisma.cloPloMapping.findUnique({
-    where: { cloId_programmePloId: { cloId, programmePloId } },
-  });
-
-  if (existing) {
-    await prisma.cloPloMapping.delete({ where: { id: existing.id } });
-  } else {
-    await prisma.cloPloMapping.create({ data: { cloId, programmePloId } });
+      await tx.cloPloMapping.deleteMany({ where: { cloId } });
+      await tx.cloPloMapping.createMany({
+        data: guided.value.programmePloIds.map((programmePloId) => ({
+          cloId,
+          programmePloId,
+        })),
+      });
+    });
+  } catch (error) {
+    console.error("updateCloAction failed:", error);
+    return { error: "Gagal mengemaskini CLO. Sila cuba lagi." };
   }
 
   revalidateVersion(courseId, versionId);
