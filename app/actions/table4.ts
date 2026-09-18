@@ -202,7 +202,11 @@ export async function saveBasicInfoAction(
     return { error: "Gagal menyimpan. Sila cuba lagi." };
   }
 
-  revalidateVersion(courseId, versionId);
+  // Do not revalidate the entire version page after basic-info autosave.
+  // Revalidation can remount the client form and visually reset recently
+  // selected controls even though the database update succeeded. The form
+  // already holds the saved values locally; normal navigation/workflow
+  // actions will fetch the persisted values again from the database.
   return { success: true };
 }
 
