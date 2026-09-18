@@ -41,8 +41,8 @@ function useAutoSaveOnBlur(
 ) {
   return (e: React.FocusEvent<HTMLFormElement>) => {
     if (readOnly) return;
-    const target = e.target as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
-    if (skipNames.includes(target.name)) return;
+    const target = e.target as unknown as { name?: string };
+    if (target.name && skipNames.includes(target.name)) return;
     e.currentTarget.requestSubmit();
   };
 }
