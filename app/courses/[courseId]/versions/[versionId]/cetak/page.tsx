@@ -8,15 +8,23 @@ import { PrintButton } from "@/components/print-button";
 import { getCurrentUser } from "@/lib/auth";
 import { canViewDraft } from "@/lib/permissions";
 import { CLASSIFICATION_LABEL } from "@/lib/table4-labels";
+import { buttonVariants } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
 export default async function PrintVersionPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ courseId: string; versionId: string }>;
+  searchParams: Promise<{ export?: string }>;
 }) {
   const { courseId, versionId } = await params;
+  const { export: requestedExport } = await searchParams;
+  const exportFormat =
+    requestedExport === "word" || requestedExport === "excel"
+      ? requestedExport
+      : null;
   const [table4, currentUser] = await Promise.all([
     getTable4Detail(versionId),
     getCurrentUser(),
@@ -42,14 +50,37 @@ export default async function PrintVersionPage({
 
   return (
     <div className="mx-auto w-full max-w-3xl px-8 py-10 print:px-0 print:py-0">
-      <div className="mb-6 flex items-center justify-between print:hidden">
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3 print:hidden">
         <Link
           href={`/courses/${table4.course.id}/versions/${table4.id}`}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
           &larr; Kembali
         </Link>
-        <PrintButton />
+
+        <div className="flex flex-wrap items-center gap-2">
+          {exportFormat ? (
+            <>
+              <span className="text-sm font-medium text-foreground">
+                Eksport Dokumen — {exportFormat === "word" ? "Word" : "Excel"}
+              </span>
+              <a
+                href={
+                  exportFormat === "word"
+                    ? `/api/export/${table4.id}`
+                    : `/api/export-excel/${table4.id}`
+                }
+                className={buttonVariants({ size: "sm" })}
+              >
+                {exportFormat === "word"
+                  ? "Muat Turun Word"
+                  : "Muat Turun Excel"}
+              </a>
+            </>
+          ) : (
+            <PrintButton />
+          )}
+        </div>
       </div>
 
       <div className="border-b-2 border-foreground pb-4">
