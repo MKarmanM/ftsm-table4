@@ -160,11 +160,12 @@ export default async function PrintVersionPage({
                     })()}
                   </td>
                   <td className="py-1.5 pr-2">
-                    {clo.mappedPloIds
-                      .map((id) => ploByCloId.get(id))
-                      .filter(Boolean)
-                      .map((p) => `PLO${p!.orderNumber}`)
-                      .join(", ") || "\u2014"}
+                    {(() => {
+                      const mappedPlo = clo.mappedPloIds
+                        .map((id) => ploByCloId.get(id))
+                        .find(Boolean);
+                      return mappedPlo ? `PLO${mappedPlo.orderNumber}` : "\u2014";
+                    })()}
                   </td>
                   <td className="py-1.5 pr-2">{clo.teachingMethods ?? "\u2014"}</td>
                   <td className="py-1.5">{clo.assessmentMethods ?? "\u2014"}</td>
