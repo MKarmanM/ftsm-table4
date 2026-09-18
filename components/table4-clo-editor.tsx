@@ -280,7 +280,7 @@ function CloRow({
 
           {derivedMqf.length > 0 && (
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Kluster MQF (auto, ikut PLO):{" "}
+              Kluster MQF:{" "}
               {derivedMqf
                 .map((code) => `${code} — ${MQF_CODE_LABEL[code]}`)
                 .join("; ")}

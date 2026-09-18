@@ -31,19 +31,16 @@ export function CloGuidedFields({
   defaultTeachingMethod?: string | null;
   defaultAssessmentMethod?: string | null;
 }) {
-  const [mappedPloIds, setMappedPloIds] = useState<string[]>(defaultMappedPloIds);
+  const [mappedPloId, setMappedPloId] = useState<string>(defaultMappedPloIds[0] ?? "");
   const [domain, setDomain] = useState<TaxonomyDomainKey | "">(defaultDomain ?? "");
   const [level, setLevel] = useState<number | "">(defaultLevel ?? "");
   const [teachingMethod, setTeachingMethod] = useState(defaultTeachingMethod ?? "");
   const [assessmentMethod, setAssessmentMethod] = useState(defaultAssessmentMethod ?? "");
 
-  const selectedPloNumbers = useMemo(
-    () =>
-      plos
-        .filter((plo) => mappedPloIds.includes(plo.id))
-        .map((plo) => plo.orderNumber),
-    [mappedPloIds, plos]
-  );
+  const selectedPloNumbers = useMemo(() => {
+    const selected = plos.find((plo) => plo.id === mappedPloId);
+    return selected ? [selected.orderNumber] : [];
+  }, [mappedPloId, plos]);
 
   const guidance = useMemo(
     () => getPloCloGuidance(selectedPloNumbers),
@@ -78,13 +75,14 @@ export function CloGuidedFields({
       ? TAXONOMY_LEVELS[effectiveDomain].find((item) => item.level === Number(effectiveLevel))
       : null;
 
-  const togglePlo = (id: string) => {
-    setMappedPloIds((current) =>
-      current.includes(id)
-        ? current.filter((value) => value !== id)
-        : [...current, id]
-    );
+  const selectPlo = (id: string) => {
+    setMappedPloId(id);
+    setDomain("");
+    setLevel("");
+    setTeachingMethod("");
+    setAssessmentMethod("");
   };
+
 
   return (
     <div className="space-y-4">
@@ -94,19 +92,19 @@ export function CloGuidedFields({
           ms="Pemetaan Hasil Pembelajaran Program (PLO)"
         />
         <p className="mt-0.5 text-xs text-muted-foreground">
-          Pilih PLO dahulu. Sistem akan menapis domain, tahap taksonomi dan
+          Pilih satu PLO sahaja. Sistem akan menapis domain, tahap taksonomi dan
           kaedah yang sesuai berdasarkan master data.
         </p>
         <div className="mt-2 flex flex-wrap gap-2">
           {plos.map((plo) => {
-            const selected = mappedPloIds.includes(plo.id);
+            const selected = mappedPloId === plo.id;
             return (
               <button
                 key={plo.id}
                 type="button"
                 title={PLO_CLO_MASTER[plo.orderNumber]?.learningOutcomeDomain ?? plo.textMs}
                 aria-pressed={selected}
-                onClick={() => togglePlo(plo.id)}
+                onClick={() => selectPlo(plo.id)}
                 className={`inline-flex min-h-9 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-[background-color,border-color,color,box-shadow,transform] focus-visible:outline-none focus-visible:ring-3 focus-visible:ring-ring/50 active:scale-[0.97] ${
                   selected
                     ? "border-primary bg-primary text-primary-foreground shadow-sm"
@@ -119,9 +117,9 @@ export function CloGuidedFields({
             );
           })}
         </div>
-        {mappedPloIds.map((id) => (
-          <input key={id} type="hidden" name="programmePloIds" value={id} />
-        ))}
+        {mappedPloId && (
+          <input type="hidden" name="programmePloIds" value={mappedPloId} />
+        )}
         {guidance.entries.length > 0 && (
           <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
             Domain hasil pembelajaran:{" "}

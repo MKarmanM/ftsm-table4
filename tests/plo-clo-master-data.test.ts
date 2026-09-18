@@ -31,13 +31,19 @@ test("PLO6 exposes cognitive, psychomotor and affective choices", () => {
   assert.deepEqual(guidance.taxonomyLevels.AFEKTIF, [1, 2, 3, 4]);
 });
 
-test("multi-PLO guidance combines valid choices without duplicates", () => {
-  const guidance = getPloCloGuidance([1, 6, 7]);
-  assert.deepEqual(guidance.taxonomyLevels.KOGNITIF, [1, 2, 3, 4, 5, 6]);
-  assert.equal(
-    guidance.teachingMethods.length,
-    new Set(guidance.teachingMethods).size
-  );
+test("guided CLO validation rejects multiple PLOs for one CLO", () => {
+  const result = validateCloGuidanceSelection({
+    ploNumbers: [1, 2],
+    taxonomyDomain: "KOGNITIF",
+    taxonomyLevel: 1,
+    teachingMethod: PLO_CLO_MASTER[1].teachingMethods[0],
+    assessmentMethod: PLO_CLO_MASTER[1].assessmentMethods[0],
+  });
+
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.match(result.error, /satu PLO sahaja/i);
+  }
 });
 
 test("guided CLO validation rejects a taxonomy level outside selected PLO range", () => {
