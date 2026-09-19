@@ -95,7 +95,11 @@ function validWeightage(raw: string): number | null {
 
 // ---- Basic info (synopsis, staff, classification, etc.) ---------------
 
-export type SaveBasicInfoState = { error?: string; success?: boolean };
+export type SaveBasicInfoState = {
+  error?: string;
+  success?: boolean;
+  classification?: CourseClassification | null;
+};
 
 export async function saveBasicInfoAction(
   _prevState: SaveBasicInfoState,
@@ -207,7 +211,10 @@ export async function saveBasicInfoAction(
   // selected controls even though the database update succeeded. The form
   // already holds the saved values locally; normal navigation/workflow
   // actions will fetch the persisted values again from the database.
-  return { success: true };
+  return {
+    success: true,
+    classification: formPart === "1" ? dataPart1.classification : undefined,
+  };
 }
 
 // ---- CLOs ---------------------------------------------------------------
