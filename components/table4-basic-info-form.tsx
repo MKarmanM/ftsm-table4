@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { startTransition, useActionState, useEffect, useRef, useState } from "react";
 import {
   saveBasicInfoAction,
   type SaveBasicInfoState,
@@ -102,6 +102,24 @@ export function BasicInfoFormPart1({
   const synopsisSplit = splitBilingual(initial.synopsis);
   const handleBlur = useAutoSaveOnBlur(readOnly, ["classification"]);
   const formRef = useRef<HTMLFormElement>(null);
+  const [classification, setClassification] = useState(initial.classification ?? "");
+
+  useEffect(() => {
+    if (state.classification !== undefined) {
+      setClassification(state.classification ?? "");
+    }
+  }, [state.classification]);
+
+  function saveClassification(nextValue: string) {
+    setClassification(nextValue);
+    if (!formRef.current) return;
+
+    const formData = new FormData(formRef.current);
+    formData.set("classification", nextValue);
+    startTransition(() => {
+      formAction(formData);
+    });
+  }
 
   return (
     <form ref={formRef} action={formAction} onBlur={handleBlur} className="space-y-5">
@@ -162,12 +180,8 @@ export function BasicInfoFormPart1({
           <BilingualLabel en="Course Classification" ms="Klasifikasi Kursus" />
           <select
             name="classification"
-            defaultValue={
-              state.classification !== undefined
-                ? state.classification ?? ""
-                : initial.classification ?? ""
-            }
-            onChange={() => formRef.current?.requestSubmit()}
+            value={classification}
+            onChange={(event) => saveClassification(event.target.value)}
             disabled={readOnly}
             className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary disabled:opacity-60"
           >
