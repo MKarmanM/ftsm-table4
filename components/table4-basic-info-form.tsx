@@ -22,19 +22,22 @@ function classificationDraftKey(versionId: string) {
   return `table4:classification:${versionId}`;
 }
 
-function getClassificationDraft(versionId: string): string | undefined {
-  if (typeof window === "undefined") return undefined;
+function getClassificationDraft(
+  versionId: string,
+  fallbackValue: string
+): string {
+  if (typeof window === "undefined") return fallbackValue;
   try {
     const raw = window.sessionStorage.getItem(classificationDraftKey(versionId));
-    if (!raw) return undefined;
+    if (!raw) return fallbackValue;
     const draft = JSON.parse(raw) as { value: string; expiresAt: number };
     if (draft.expiresAt <= Date.now()) {
       window.sessionStorage.removeItem(classificationDraftKey(versionId));
-      return undefined;
+      return fallbackValue;
     }
     return draft.value;
   } catch {
-    return undefined;
+    return fallbackValue;
   }
 }
 
@@ -149,17 +152,13 @@ export function BasicInfoFormPart1({
   const [classificationOverride, setClassificationOverride] = useState<
     string | undefined
   >();
+  const initialClassification = initial.classification ?? "";
   const storedClassification = useSyncExternalStore(
     subscribeClassificationDraft,
-    () => getClassificationDraft(versionId),
-    () => undefined
+    () => getClassificationDraft(versionId, initialClassification),
+    () => initialClassification
   );
-  const classification =
-    classificationOverride ??
-    storedClassification ??
-    (state.classification !== undefined
-      ? state.classification ?? ""
-      : initial.classification ?? "");
+  const classification = classificationOverride ?? storedClassification;
 
   function saveClassification(nextValue: string) {
     setClassificationDraft(versionId, nextValue);
