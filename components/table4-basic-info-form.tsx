@@ -145,10 +145,12 @@ export function BasicInfoFormPart1({
     classificationDomain: string | null;
   };
 }) {
-  const [state, formAction, isPending] = useActionState(saveBasicInfoAction, initialState);
+  const [state, setState] = useState<SaveBasicInfoState>(initialState);
+  const [isPending, setIsPending] = useState(false);
   const synopsisSplit = splitBilingual(initial.synopsis);
-  const handleBlur = useAutoSaveOnBlur(readOnly, ["classification"]);
   const formRef = useRef<HTMLFormElement>(null);
+  const saveInFlightRef = useRef(false);
+  const queuedFormDataRef = useRef<FormData | null>(null);
   const [classificationOverride, setClassificationOverride] = useState<
     string | undefined
   >();
@@ -160,20 +162,69 @@ export function BasicInfoFormPart1({
   );
   const classification = classificationOverride ?? storedClassification;
 
+  async function runSaveQueue(firstFormData: FormData) {
+    if (saveInFlightRef.current) {
+      queuedFormDataRef.current = firstFormData;
+      return;
+    }
+
+    saveInFlightRef.current = true;
+    setIsPending(true);
+    let nextFormData: FormData | null = firstFormData;
+
+    while (nextFormData) {
+      queuedFormDataRef.current = null;
+      try {
+        const response = await fetch("/api/table4/basic-info", {
+          method: "POST",
+          body: nextFormData,
+        });
+        const result = (await response.json()) as SaveBasicInfoState;
+        setState(result);
+      } catch {
+        setState({ error: "Gagal menyimpan. Sila cuba lagi." });
+      }
+      nextFormData = queuedFormDataRef.current;
+    }
+
+    saveInFlightRef.current = false;
+    setIsPending(false);
+  }
+
+  function queueCurrentForm(classificationValue?: string) {
+    if (!formRef.current) return;
+    const formData = new FormData(formRef.current);
+    if (classificationValue !== undefined) {
+      formData.set("classification", classificationValue);
+    }
+    void runSaveQueue(formData);
+  }
+
+  function handleBlur(event: React.FocusEvent<HTMLFormElement>) {
+    if (readOnly) return;
+    const target = event.target as unknown as { name?: string };
+    if (target.name === "classification") return;
+    queueCurrentForm();
+  }
+
   function saveClassification(nextValue: string) {
     setClassificationDraft(versionId, nextValue);
     setClassificationOverride(nextValue);
-    if (!formRef.current) return;
+    queueCurrentForm(nextValue);
+  }
 
-    const formData = new FormData(formRef.current);
-    formData.set("classification", nextValue);
-    startTransition(() => {
-      formAction(formData);
-    });
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!readOnly) queueCurrentForm();
   }
 
   return (
-    <form ref={formRef} action={formAction} onBlur={handleBlur} className="space-y-5">
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit}
+      onBlur={handleBlur}
+      className="space-y-5"
+    >
       <input type="hidden" name="versionId" value={versionId} />
       <input type="hidden" name="courseId" value={courseId} />
       <input type="hidden" name="formPart" value="1" />
