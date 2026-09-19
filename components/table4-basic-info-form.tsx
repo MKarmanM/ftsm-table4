@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useEffect, useRef, useState } from "react";
+import { startTransition, useActionState, useRef, useState } from "react";
 import {
   saveBasicInfoAction,
   type SaveBasicInfoState,
@@ -102,16 +102,15 @@ export function BasicInfoFormPart1({
   const synopsisSplit = splitBilingual(initial.synopsis);
   const handleBlur = useAutoSaveOnBlur(readOnly, ["classification"]);
   const formRef = useRef<HTMLFormElement>(null);
-  const [classification, setClassification] = useState(initial.classification ?? "");
-
-  useEffect(() => {
-    if (state.classification !== undefined) {
-      setClassification(state.classification ?? "");
-    }
-  }, [state.classification]);
+  const [classificationOverride, setClassificationOverride] = useState<string>();
+  const classification =
+    classificationOverride ??
+    (state.classification !== undefined
+      ? state.classification ?? ""
+      : initial.classification ?? "");
 
   function saveClassification(nextValue: string) {
-    setClassification(nextValue);
+    setClassificationOverride(nextValue);
     if (!formRef.current) return;
 
     const formData = new FormData(formRef.current);
