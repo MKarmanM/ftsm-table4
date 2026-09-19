@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useRef, useState, useSyncExternalStore } from "react";
+import { useActionState, useRef, useState, useSyncExternalStore } from "react";
 import {
   saveBasicInfoAction,
   type SaveBasicInfoState,
