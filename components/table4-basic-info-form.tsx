@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useRef, useState } from "react";
+import { useActionState, useRef } from "react";
 import {
   saveBasicInfoAction,
   type SaveBasicInfoState,
@@ -101,18 +101,7 @@ export function BasicInfoFormPart1({
   const [state, formAction, isPending] = useActionState(saveBasicInfoAction, initialState);
   const synopsisSplit = splitBilingual(initial.synopsis);
   const handleBlur = useAutoSaveOnBlur(readOnly, ["classification"]);
-  const [classification, setClassification] = useState(initial.classification ?? "");
   const formRef = useRef<HTMLFormElement>(null);
-
-  function saveClassification(nextValue: string) {
-    setClassification(nextValue);
-    // The select is controlled. Wait until React commits the new value before
-    // serialising FormData, otherwise an immediate blur can submit the
-    // previous classification.
-    requestAnimationFrame(() => {
-      formRef.current?.requestSubmit();
-    });
-  }
 
   return (
     <form ref={formRef} action={formAction} onBlur={handleBlur} className="space-y-5">
@@ -173,8 +162,8 @@ export function BasicInfoFormPart1({
           <BilingualLabel en="Course Classification" ms="Klasifikasi Kursus" />
           <select
             name="classification"
-            value={classification}
-            onChange={(event) => saveClassification(event.target.value)}
+            defaultValue={initial.classification ?? ""}
+            onChange={() => formRef.current?.requestSubmit()}
             disabled={readOnly}
             className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary disabled:opacity-60"
           >
