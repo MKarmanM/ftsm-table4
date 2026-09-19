@@ -106,7 +106,6 @@ export async function saveBasicInfoAction(
   formData: FormData
 ): Promise<SaveBasicInfoState> {
   const versionId = String(formData.get("versionId") ?? "");
-  const courseId = String(formData.get("courseId") ?? "");
   const check = await assertEditable(versionId);
   if ("error" in check) return { error: check.error };
 
@@ -206,10 +205,11 @@ export async function saveBasicInfoAction(
     return { error: "Gagal menyimpan. Sila cuba lagi." };
   }
 
-  // Refresh the version data after the database update. Autosaves from the
-  // two independent basic-info forms can overlap; revalidating here ensures
-  // whichever response renders last uses the latest persisted classification.
-  revalidateVersion(courseId, versionId);
+  // Do not revalidate the whole route for a blur autosave. A route refresh can
+  // remount this form with server props from an earlier overlapping request,
+  // which makes controlled fields appear to revert even though the database
+  // already contains the new value. Fresh data is loaded on the next explicit
+  // navigation or page reload.
 
   return {
     success: true,
