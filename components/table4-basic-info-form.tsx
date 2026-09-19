@@ -162,7 +162,11 @@ export function BasicInfoFormPart1({
           <BilingualLabel en="Course Classification" ms="Klasifikasi Kursus" />
           <select
             name="classification"
-            defaultValue={initial.classification ?? ""}
+            defaultValue={
+              state.classification !== undefined
+                ? state.classification ?? ""
+                : initial.classification ?? ""
+            }
             onChange={() => formRef.current?.requestSubmit()}
             disabled={readOnly}
             className="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2.5 text-sm text-foreground outline-none focus:border-primary disabled:opacity-60"
