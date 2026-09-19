@@ -106,6 +106,7 @@ export async function saveBasicInfoAction(
   formData: FormData
 ): Promise<SaveBasicInfoState> {
   const versionId = String(formData.get("versionId") ?? "");
+  const courseId = String(formData.get("courseId") ?? "");
   const check = await assertEditable(versionId);
   if ("error" in check) return { error: check.error };
 
@@ -205,11 +206,10 @@ export async function saveBasicInfoAction(
     return { error: "Gagal menyimpan. Sila cuba lagi." };
   }
 
-  // Do not revalidate the whole route for a blur autosave. A route refresh can
-  // remount this form with server props from an earlier overlapping request,
-  // which makes controlled fields appear to revert even though the database
-  // already contains the new value. Fresh data is loaded on the next explicit
-  // navigation or page reload.
+  // Keep cached route data fresh for the next explicit navigation or reload.
+  // Part 1 autosaves use the JSON route handler, so this invalidation does not
+  // push a React Server Component refresh into the form that is being edited.
+  revalidateVersion(courseId, versionId);
 
   return {
     success: true,
