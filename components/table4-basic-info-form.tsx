@@ -15,6 +15,22 @@ import {
 
 const initialState: SaveBasicInfoState = {};
 
+const CLASSIFICATION_DRAFT_TTL_MS = 30_000;
+const classificationDrafts = new Map<
+  string,
+  { value: string; expiresAt: number }
+>();
+
+function getClassificationDraft(versionId: string): string | undefined {
+  const draft = classificationDrafts.get(versionId);
+  if (!draft) return undefined;
+  if (draft.expiresAt <= Date.now()) {
+    classificationDrafts.delete(versionId);
+    return undefined;
+  }
+  return draft.value;
+}
+
 const CLASSIFICATION_OPTIONS = [
   { value: "", label: "— Pilih —" },
   { value: "WU_CITRA_WAJIB", label: "Compulsory/Wajib Universiti (WU), Citra Wajib (CW)" },
@@ -102,7 +118,9 @@ export function BasicInfoFormPart1({
   const synopsisSplit = splitBilingual(initial.synopsis);
   const handleBlur = useAutoSaveOnBlur(readOnly, ["classification"]);
   const formRef = useRef<HTMLFormElement>(null);
-  const [classificationOverride, setClassificationOverride] = useState<string>();
+  const [classificationOverride, setClassificationOverride] = useState<
+    string | undefined
+  >(() => getClassificationDraft(versionId));
   const classification =
     classificationOverride ??
     (state.classification !== undefined
@@ -110,6 +128,10 @@ export function BasicInfoFormPart1({
       : initial.classification ?? "");
 
   function saveClassification(nextValue: string) {
+    classificationDrafts.set(versionId, {
+      value: nextValue,
+      expiresAt: Date.now() + CLASSIFICATION_DRAFT_TTL_MS,
+    });
     setClassificationOverride(nextValue);
     if (!formRef.current) return;
 
