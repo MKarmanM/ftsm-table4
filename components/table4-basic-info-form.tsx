@@ -1,6 +1,6 @@
 "use client";
 
-import { startTransition, useActionState, useRef, useState } from "react";
+import { startTransition, useActionState, useRef, useState, useSyncExternalStore } from "react";
 import {
   saveBasicInfoAction,
   type SaveBasicInfoState,
@@ -16,19 +16,47 @@ import {
 const initialState: SaveBasicInfoState = {};
 
 const CLASSIFICATION_DRAFT_TTL_MS = 30_000;
-const classificationDrafts = new Map<
-  string,
-  { value: string; expiresAt: number }
->();
+const CLASSIFICATION_DRAFT_EVENT = "table4:classification-draft";
+
+function classificationDraftKey(versionId: string) {
+  return `table4:classification:${versionId}`;
+}
 
 function getClassificationDraft(versionId: string): string | undefined {
-  const draft = classificationDrafts.get(versionId);
-  if (!draft) return undefined;
-  if (draft.expiresAt <= Date.now()) {
-    classificationDrafts.delete(versionId);
+  if (typeof window === "undefined") return undefined;
+  try {
+    const raw = window.sessionStorage.getItem(classificationDraftKey(versionId));
+    if (!raw) return undefined;
+    const draft = JSON.parse(raw) as { value: string; expiresAt: number };
+    if (draft.expiresAt <= Date.now()) {
+      window.sessionStorage.removeItem(classificationDraftKey(versionId));
+      return undefined;
+    }
+    return draft.value;
+  } catch {
     return undefined;
   }
-  return draft.value;
+}
+
+function setClassificationDraft(versionId: string, value: string) {
+  try {
+    window.sessionStorage.setItem(
+      classificationDraftKey(versionId),
+      JSON.stringify({
+        value,
+        expiresAt: Date.now() + CLASSIFICATION_DRAFT_TTL_MS,
+      })
+    );
+    window.dispatchEvent(new Event(CLASSIFICATION_DRAFT_EVENT));
+  } catch {
+    // The controlled field state still preserves the selection when storage is unavailable.
+  }
+}
+
+function subscribeClassificationDraft(onStoreChange: () => void) {
+  window.addEventListener(CLASSIFICATION_DRAFT_EVENT, onStoreChange);
+  return () =>
+    window.removeEventListener(CLASSIFICATION_DRAFT_EVENT, onStoreChange);
 }
 
 const CLASSIFICATION_OPTIONS = [
@@ -120,18 +148,21 @@ export function BasicInfoFormPart1({
   const formRef = useRef<HTMLFormElement>(null);
   const [classificationOverride, setClassificationOverride] = useState<
     string | undefined
-  >(() => getClassificationDraft(versionId));
+  >();
+  const storedClassification = useSyncExternalStore(
+    subscribeClassificationDraft,
+    () => getClassificationDraft(versionId),
+    () => undefined
+  );
   const classification =
     classificationOverride ??
+    storedClassification ??
     (state.classification !== undefined
       ? state.classification ?? ""
       : initial.classification ?? "");
 
   function saveClassification(nextValue: string) {
-    classificationDrafts.set(versionId, {
-      value: nextValue,
-      expiresAt: Date.now() + CLASSIFICATION_DRAFT_TTL_MS,
-    });
+    setClassificationDraft(versionId, nextValue);
     setClassificationOverride(nextValue);
     if (!formRef.current) return;
 
