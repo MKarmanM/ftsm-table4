@@ -7,6 +7,7 @@ import { TABLE4_CELLS, CLASSIFICATION_TEXT, MQF_CLUSTER_GRID_ROWS } from "@/lib/
 import { taxonomyCode } from "@/lib/taxonomy-data";
 import { deriveMqfClusters } from "@/lib/mqf-legend";
 import { canViewDraft } from "@/lib/permissions";
+import { cacheSltFormulaResults } from "@/lib/excel-slt-cache";
 
 const TEMPLATE_PATH = path.join(process.cwd(), "resources", "table4-template.xlsx");
 
@@ -225,6 +226,14 @@ export async function GET(
   if (table4.senateApprovalDate) {
     set(TABLE4_CELLS.senateApprovalDate, table4.senateApprovalDate.toLocaleDateString("en-GB"));
   }
+
+  cacheSltFormulaResults(
+    sheet,
+    table4.topics.slice(0, TABLE4_CELLS.topicMaxRows),
+    table4.assessments.filter((a) => a.phase === "CONTINUOUS").slice(0, TABLE4_CELLS.continuousMaxRows),
+    table4.assessments.filter((a) => a.phase === "FINAL").slice(0, TABLE4_CELLS.finalMaxRows),
+    table4.isIndustrialTraining50Elt
+  );
 
   const buffer = await workbook.xlsx.writeBuffer();
   const filename = `Table4_${table4.course.code}_v${table4.versionNo}.xlsx`;
