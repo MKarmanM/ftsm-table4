@@ -22,8 +22,8 @@ function ltpoSum(b: LtpoBreakdown): number {
   return (b.l ?? 0) + (b.t ?? 0) + (b.p ?? 0) + (b.o ?? 0);
 }
 
-export async function getTable4Detail(versionId: string) {
-  const version = await prisma.proformaVersion.findUnique({
+export async function getTable4Detail(versionId: string, db = prisma) {
+  const version = await db.proformaVersion.findUnique({
     where: { id: versionId },
     include: {
       course: { include: { programme: true } },
@@ -45,10 +45,18 @@ export async function getTable4Detail(versionId: string) {
   });
   if (!version) return null;
 
-  const programmePlos = await prisma.programmePlo.findMany({
+  const programmePlos = await db.programmePlo.findMany({
     where: { programmeId: version.course.programmeId },
     orderBy: { orderNumber: "asc" },
   });
+
+  // A course's stored credit belongs to its published catalogue record.
+  // Print and exports must show the credit derived for this particular version.
+  const versionCredit = computeSltSummary(
+    version.topics.map((topic) => ({ hours: normalizeHours(topic.hours) })),
+    version.assessments.map((assessment) => ({ hours: normalizeHours(assessment.hours) })),
+    version.isIndustrialTraining50Elt
+  ).suggestedCreditHours;
 
   return {
     id: version.id,
@@ -78,7 +86,7 @@ export async function getTable4Detail(versionId: string) {
       id: version.course.id,
       code: version.course.code,
       nameMs: version.course.nameMs,
-      creditHours: version.course.creditHours.toString(),
+      creditHours: String(versionCredit),
       programmeId: version.course.programmeId,
       programmeCode: version.course.programme.code,
     },
