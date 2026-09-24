@@ -202,3 +202,92 @@ export async function setUserActiveAction(
   revalidatePath("/admin/users");
   return {};
 }
+
+export type AssignCourseState = { error?: string; success?: boolean };
+
+export async function assignCourseAction(
+  _prevState: AssignCourseState,
+  formData: FormData
+): Promise<AssignCourseState> {
+  const actor = await getCurrentUser();
+  if (!actor) return { error: "Sesi telah tamat. Sila log masuk semula." };
+  if (!canManageUsers(actor)) return { error: PERMISSION_DENIED_MESSAGE };
+
+  const userId = String(formData.get("userId") ?? "");
+  const courseId = String(formData.get("courseId") ?? "");
+  if (!userId || !courseId) return { error: "Pengguna dan kursus wajib dipilih." };
+
+  const [course, user] = await Promise.all([
+    prisma.course.findFirst({ where: { id: courseId, isActive: true }, select: { programmeId: true } }),
+    prisma.user.findFirst({
+      where: { id: userId, isActive: true },
+      select: { roles: { select: { role: true, programmeId: true } } },
+    }),
+  ]);
+  if (!course || !user || !user.roles.some(
+    (r) => r.role === Role.LECTURER && r.programmeId === course.programmeId
+  )) {
+    return { error: "Pensyarah mesti aktif dan mempunyai peranan bagi program kursus ini." };
+  }
+
+  const existing = await prisma.courseAssignment.findUnique({
+    where: { courseId_userId: { courseId, userId } },
+  });
+  if (existing) return { error: "Pengguna ini sudah ditugaskan kepada kursus tersebut." };
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const assignment = await tx.courseAssignment.create({
+        data: { courseId, userId, isCoordinator: false },
+      });
+      await tx.auditEvent.create({
+        data: {
+          actorId: actor.id, action: "ASSIGN_LECTURER", entityType: "CourseAssignment",
+          entityId: assignment.id, metadata: { userId, courseId },
+        },
+      });
+    });
+  } catch (err) {
+    if (isDuplicateError(err)) return { error: "Pengguna ini sudah ditugaskan kepada kursus tersebut." };
+    console.error("assignCourseAction failed:", err);
+    return { error: "Gagal menugaskan kursus. Sila cuba lagi." };
+  }
+  revalidatePath("/admin/users");
+  return { success: true };
+}
+
+export async function removeCourseAssignmentAction(
+  _prevState: AssignCourseState,
+  formData: FormData
+): Promise<AssignCourseState> {
+  const actor = await getCurrentUser();
+  if (!actor) return { error: "Sesi telah tamat. Sila log masuk semula." };
+  if (!canManageUsers(actor)) return { error: PERMISSION_DENIED_MESSAGE };
+  const assignmentId = String(formData.get("assignmentId") ?? "");
+  if (!assignmentId) return { error: "Tugasan tidak sah." };
+  try {
+    await prisma.$transaction(async (tx) => {
+      const assignment = await tx.courseAssignment.findUnique({
+        where: { id: assignmentId },
+        select: { userId: true, courseId: true, isCoordinator: true },
+      });
+      if (!assignment || assignment.isCoordinator) throw new Error("NOT_LECTURER_ASSIGNMENT");
+      await tx.courseAssignment.delete({ where: { id: assignmentId } });
+      await tx.auditEvent.create({
+        data: {
+          actorId: actor.id, action: "REMOVE_LECTURER", entityType: "CourseAssignment",
+          entityId: assignmentId,
+          metadata: { userId: assignment.userId, courseId: assignment.courseId },
+        },
+      });
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message === "NOT_LECTURER_ASSIGNMENT") {
+      return { error: "Hanya tugasan Pensyarah biasa boleh dibuang di sini." };
+    }
+    console.error("removeCourseAssignmentAction failed:", err);
+    return { error: "Gagal membuang tugasan. Sila cuba lagi." };
+  }
+  revalidatePath("/admin/users");
+  return { success: true };
+}
