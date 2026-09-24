@@ -6,6 +6,7 @@ import { notifyReviewAction } from "./notifications";
 import { after } from "next/server";
 import { computeSltSummary, normalizeHours } from "./table4-detail";
 import { formatValidationIssues, validateTable4ForSubmission } from "./table4-validation";
+import { assertNoActiveDraft } from "./proforma-version";
 
 // Server-only: this file imports "./prisma" (pg driver, Node-only). Never
 // import this from a Client Component — import lib/workflow-constants.ts
@@ -47,6 +48,10 @@ export async function applyReviewAction(params: {
         throw new WorkflowError(
           `Cannot go from ${version.status} to ${nextStatus} via ${type}`
         );
+      }
+
+      if (nextStatus === ProformaStatus.DRAFT) {
+        await assertNoActiveDraft(tx, version.courseId, version.id);
       }
 
       const timestampField =

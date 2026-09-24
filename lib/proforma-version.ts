@@ -12,6 +12,34 @@ import { prisma } from "./prisma";
 
 const MAX_RETRIES = 5;
 
+export class ActiveDraftExistsError extends Error {
+  constructor() {
+    super("Kursus ini sudah mempunyai draf aktif. Buka draf tersebut sebelum mencipta versi baharu.");
+  }
+}
+
+/** Serialize every transition into DRAFT on the parent course row. */
+export async function assertNoActiveDraft(
+  tx: Prisma.TransactionClient,
+  courseId: string,
+  exceptVersionId?: string
+) {
+  const locked = await tx.$queryRaw<{ id: string }[]>`
+    SELECT "id" FROM "Course" WHERE "id" = ${courseId} FOR UPDATE
+  `;
+  if (locked.length === 0) throw new Error("Kursus tidak dijumpai.");
+
+  const existing = await tx.proformaVersion.findFirst({
+    where: {
+      courseId,
+      status: ProformaStatus.DRAFT,
+      ...(exceptVersionId ? { NOT: { id: exceptVersionId } } : {}),
+    },
+    select: { id: true },
+  });
+  if (existing) throw new ActiveDraftExistsError();
+}
+
 async function withVersionRetry<T>(work: () => Promise<T>): Promise<T> {
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
@@ -36,12 +64,13 @@ export async function createDraftVersion(params: {
   courseId: string;
   createdById: string;
   payload?: Prisma.InputJsonValue;
-}) {
+}, db = prisma) {
   const { courseId, createdById, payload = {} } = params;
 
   return withVersionRetry(() =>
-    prisma.$transaction(
+    db.$transaction(
       async (tx) => {
+        await assertNoActiveDraft(tx, courseId);
         const latest = await tx.proformaVersion.findFirst({
           where: { courseId },
           orderBy: { versionNo: "desc" },
@@ -75,6 +104,7 @@ export async function copyDraftVersion(params: {
   return withVersionRetry(() =>
     prisma.$transaction(
       async (tx) => {
+        await assertNoActiveDraft(tx, courseId);
         const source = await tx.proformaVersion.findFirst({
           where: { id: sourceVersionId, courseId },
           include: {

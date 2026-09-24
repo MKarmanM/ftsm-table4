@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentUser } from "@/lib/auth";
-import { createDraftVersion, copyDraftVersion } from "@/lib/proforma-version";
+import { ActiveDraftExistsError, createDraftVersion, copyDraftVersion } from "@/lib/proforma-version";
 import { applyReviewAction } from "@/lib/proforma-workflow";
 import { canManageDraft, canViewDraft, isActionPermitted } from "@/lib/permissions";
 import { prisma } from "@/lib/prisma";
@@ -35,6 +35,7 @@ export async function createDraftAction(
   try {
     await createDraftVersion({ courseId, createdById: currentUser.id, payload: {} });
   } catch (err) {
+    if (err instanceof ActiveDraftExistsError) return { error: err.message };
     console.error("createDraftAction failed:", err);
     return { error: "Gagal mencipta draf. Sila cuba lagi, atau hubungi Pegawai Akademik jika berterusan." };
   }
