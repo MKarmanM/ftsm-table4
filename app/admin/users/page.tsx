@@ -41,7 +41,7 @@ export default async function UsersAdminPage({
   ]);
   const displayedUsers = filteredUsers ?? usersForDropdown;
   const lecturers = usersForDropdown.filter((u) => u.isActive && u.roles.some((r) => r.role === Role.LECTURER))
-    .map((u) => ({ id: u.id, name: u.name, email: u.email, programmeCodes: [] as string[] }));
+    .map((u) => ({ id: u.id, name: u.name, email: u.email }));
   const courses = allCourses.filter((c) => c.isActive).map((c) => ({
     id: c.id, code: c.code, nameMs: c.nameMs, programmeCode: c.programmeCode,
   }));
