@@ -12,7 +12,6 @@ type Lecturer = {
   id: string;
   name: string;
   email: string;
-  programmeCodes: string[];
 };
 type CourseOption = {
   id: string;
