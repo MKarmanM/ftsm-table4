@@ -5,7 +5,7 @@ import { Role } from "../lib/generated/prisma/enums";
 import type { PermissionUser } from "../lib/permissions";
 
 type ModuleMockOptions = {
-  exports: Record<string, unknown>;
+  namedExports: Record<string, unknown>;
 };
 
 type ModuleMock = (
@@ -104,13 +104,13 @@ const sharedSltSummary = {
 };
 
 mockModule(new URL("../lib/auth.ts", import.meta.url).href, {
-  exports: {
+  namedExports: {
     getCurrentUser: async () => currentUser,
   },
 });
 
 mockModule(new URL("../lib/table4-detail.ts", import.meta.url).href, {
-  exports: {
+  namedExports: {
     getTable4Detail: async () => sharedTable4,
     computeSltSummary: () => sharedSltSummary,
     computeGroupTotal: () => 0,
@@ -118,13 +118,13 @@ mockModule(new URL("../lib/table4-detail.ts", import.meta.url).href, {
 });
 
 mockModule(new URL("../lib/proforma-detail.ts", import.meta.url).href, {
-  exports: {
+  namedExports: {
     getVersionDetail: async () => sharedVersion,
   },
 });
 
 mockModule(new URL("../lib/audit.ts", import.meta.url).href, {
-  exports: {
+  namedExports: {
     getAuditEventsForVersion: async () => [],
   },
 });
