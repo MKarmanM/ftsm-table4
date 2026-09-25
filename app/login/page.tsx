@@ -3,6 +3,7 @@
 import { useActionState } from "react";
 import Link from "next/link";
 import { loginAction, type LoginState } from "./actions";
+import { FormField } from "@/components/form-field";
 import { Button } from "@/components/ui/button";
 
 const initialState: LoginState = {};
@@ -27,39 +28,21 @@ export default function LoginPage() {
         </p>
 
         <form action={formAction} className="mt-6 space-y-4">
-          <div>
-            <label
-              htmlFor="email"
-              className="block text-sm font-medium text-foreground"
-            >
-              Emel
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              placeholder="nama@ftsm.ukm.edu.my"
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            />
-          </div>
-          <div>
-            <label
-              htmlFor="password"
-              className="block text-sm font-medium text-foreground"
-            >
-              Kata Laluan
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              autoComplete="current-password"
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-            />
-          </div>
+          <FormField
+            label="Emel"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            placeholder="nama@ftsm.ukm.edu.my"
+          />
+          <FormField
+            label="Kata Laluan"
+            name="password"
+            type="password"
+            required
+            autoComplete="current-password"
+          />
 
           {state?.error && (
             <p role="alert" className="text-sm text-destructive">

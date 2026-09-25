@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useEffect } from "react";
 import { createUserAction, type CreateUserState } from "@/app/actions/user-admin";
+import { FormField } from "@/components/form-field";
 import { Button } from "@/components/ui/button";
 
 const initialState: CreateUserState = {};
@@ -22,17 +23,17 @@ export function AddUserForm() {
   return (
     <form ref={formRef} action={formAction} className="space-y-3">
       <div className="grid grid-cols-2 gap-3">
-        <Field label="Nama Penuh" name="name" placeholder="Dr. Ali bin Ahmad" required />
-        <Field label="No. Staf — pilihan" name="staffNo" placeholder="A1234" />
+        <FormField label="Nama Penuh" name="name" placeholder="Dr. Ali bin Ahmad" required />
+        <FormField label="No. Staf — pilihan" name="staffNo" placeholder="A1234" />
       </div>
-      <Field
+      <FormField
         label="Emel"
         name="email"
         type="email"
         placeholder="ali@ftsm.ukm.edu.my"
         required
       />
-      <Field
+      <FormField
         label="Kata Laluan Awal"
         name="password"
         type="password"
@@ -54,38 +55,5 @@ export function AddUserForm() {
         )}
       </div>
     </form>
-  );
-}
-
-function Field({
-  label,
-  name,
-  placeholder,
-  required,
-  type = "text",
-}: {
-  label: string;
-  name: string;
-  placeholder?: string;
-  required?: boolean;
-  type?: string;
-}) {
-  return (
-    <div>
-      <label
-        htmlFor={name}
-        className="block text-sm font-medium text-foreground"
-      >
-        {label}
-      </label>
-      <input
-        id={name}
-        name={name}
-        type={type}
-        placeholder={placeholder}
-        required={required}
-        className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-      />
-    </div>
   );
 }

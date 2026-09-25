@@ -2,6 +2,7 @@
 
 import { useActionState, useRef, useState } from "react";
 import { assignRoleAction, type AssignRoleState } from "@/app/actions/user-admin";
+import { FormSelect } from "@/components/form-field";
 import { Button } from "@/components/ui/button";
 
 const initialState: AssignRoleState = {};
@@ -48,20 +49,7 @@ export function AssignRoleForm({
 
   return (
     <form ref={formRef} action={formAction} className="space-y-3">
-      <div>
-        <label
-          htmlFor="userId"
-          className="block text-sm font-medium text-foreground"
-        >
-          Pengguna
-        </label>
-        <select
-          id="userId"
-          name="userId"
-          required
-          defaultValue=""
-          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-        >
+      <FormSelect label="Pengguna" name="userId" required defaultValue="">
           <option value="" disabled>
             Pilih pengguna
           </option>
@@ -70,46 +58,23 @@ export function AssignRoleForm({
               {u.name} ({u.email})
             </option>
           ))}
-        </select>
-      </div>
+      </FormSelect>
 
-      <div>
-        <label
-          htmlFor="role"
-          className="block text-sm font-medium text-foreground"
-        >
-          Peranan
-        </label>
-        <select
-          id="role"
-          name="role"
-          value={selectedRole}
-          onChange={(e) => setSelectedRole(e.target.value)}
-          className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-        >
+      <FormSelect
+        label="Peranan"
+        name="role"
+        value={selectedRole}
+        onChange={(event) => setSelectedRole(event.target.value)}
+      >
           {ROLE_OPTIONS.map((r) => (
             <option key={r.value} value={r.value}>
               {r.label}
             </option>
           ))}
-        </select>
-      </div>
+      </FormSelect>
 
       {needsProgramme && (
-        <div>
-          <label
-            htmlFor="programmeId"
-            className="block text-sm font-medium text-foreground"
-          >
-            Program
-          </label>
-          <select
-            id="programmeId"
-            name="programmeId"
-            required
-            defaultValue=""
-            className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-          >
+        <FormSelect label="Program" name="programmeId" required defaultValue="">
             <option value="" disabled>
               Pilih program
             </option>
@@ -118,8 +83,7 @@ export function AssignRoleForm({
                 {p.code} &mdash; {p.nameMs}
               </option>
             ))}
-          </select>
-        </div>
+        </FormSelect>
       )}
 
       <div className="flex items-center gap-3 pt-1">

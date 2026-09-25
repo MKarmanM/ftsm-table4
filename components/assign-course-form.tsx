@@ -1,12 +1,13 @@
 "use client";
 
-import { useActionState, useRef } from "react";
+import { useActionState, useId, useRef } from "react";
 import {
   assignCourseAction,
   removeCourseAssignmentAction,
   type AssignCourseState,
 } from "@/app/actions/user-admin";
 import { Button } from "@/components/ui/button";
+import { FormSelect } from "@/components/form-field";
 
 type Lecturer = {
   id: string;
@@ -37,6 +38,8 @@ export function AssignCourseForm({
   assignments: Assignment[];
 }) {
   const formRef = useRef<HTMLFormElement>(null);
+  const reactId = useId();
+  const hintId = `${reactId}-course-assignment-hint`;
   const [state, action, pending] = useActionState(
     async (previous: AssignCourseState, data: FormData) => {
       const result = await assignCourseAction(previous, data);
@@ -52,32 +55,36 @@ export function AssignCourseForm({
 
   return (
     <div className="space-y-4">
-      <p className="text-xs text-muted-foreground">
+      <p id={hintId} className="text-xs text-muted-foreground">
         Tugasan membolehkan Pensyarah melihat Table 4 kursus yang ditetapkan.
         Suntingan draf kekal untuk Penyelaras Kursus.
       </p>
       {lecturers.length > 0 && courses.length > 0 ? (
         <form ref={formRef} action={action} className="space-y-3">
-          <div>
-            <label htmlFor="assignment-user" className="block text-sm font-medium">Pensyarah</label>
-            <select id="assignment-user" name="userId" required defaultValue=""
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+          <FormSelect
+            label="Pensyarah"
+            name="userId"
+            required
+            defaultValue=""
+            describedBy={hintId}
+          >
               <option value="" disabled>Pilih Pensyarah</option>
               {lecturers.map((u) => (
                 <option key={u.id} value={u.id}>{u.name} ({u.email})</option>
               ))}
-            </select>
-          </div>
-          <div>
-            <label htmlFor="assignment-course" className="block text-sm font-medium">Kursus</label>
-            <select id="assignment-course" name="courseId" required defaultValue=""
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">
+          </FormSelect>
+          <FormSelect
+            label="Kursus"
+            name="courseId"
+            required
+            defaultValue=""
+            describedBy={hintId}
+          >
               <option value="" disabled>Pilih kursus</option>
               {courses.map((c) => (
                 <option key={c.id} value={c.id}>{c.programmeCode} · {c.code} — {c.nameMs}</option>
               ))}
-            </select>
-          </div>
+          </FormSelect>
           <Button type="submit" size="sm" disabled={pending}>
             {pending ? "Memproses..." : "Tugaskan Kursus"}
           </Button>
