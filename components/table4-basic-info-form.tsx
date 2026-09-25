@@ -105,7 +105,8 @@ function SaveStatus({ state, isPending }: { state: SaveBasicInfoState; isPending
   if (state?.error) {
     return (
       <p role="alert" className="inline-flex items-center gap-1.5 rounded-md bg-destructive/10 px-2.5 py-1.5 text-sm text-destructive">
-        Tidak dapat menyimpan: {state.error}
+        Tidak dapat menyimpan: {state.error} Data anda masih ada dalam borang
+        ini dan belum hilang.
       </p>
     );
   }
@@ -179,8 +180,23 @@ export function BasicInfoFormPart1({
           method: "POST",
           body: nextFormData,
         });
-        const result = (await response.json()) as SaveBasicInfoState;
-        setState(result);
+
+        const redirectedToLogin =
+          response.redirected &&
+          new URL(response.url).pathname === "/login";
+
+        if (redirectedToLogin) {
+          setState({
+            error: "Sesi anda telah tamat. Sila log masuk semula.",
+          });
+        } else if (!response.ok) {
+          setState({
+            error: "Pelayan tidak dapat menerima perubahan. Sila cuba lagi.",
+          });
+        } else {
+          const result = (await response.json()) as SaveBasicInfoState;
+          setState(result);
+        }
       } catch {
         setState({ error: "Gagal menyimpan. Sila cuba lagi." });
       }
