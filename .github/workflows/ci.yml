@@ -15,11 +15,30 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: ftsm_table4_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U postgres -d ftsm_table4_test"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+    # Ephemeral values for the CI Postgres service only. These are not
+    # real credentials and are never used outside this workflow run.
     env:
-      # Validation loads Prisma configuration but makes no database
-      # connection, so this URL is intentionally dummy and is not a secret.
-      DATABASE_URL: "postgresql://user:pass@localhost:5432/ftsm_table4"
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ftsm_table4_test
+      SESSION_SECRET: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      RESET_TOKEN_SECRET: fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210
+      APP_URL: http://localhost:3000
+      EMAIL_FROM: "Table 4 FTSM <noreply@example.edu>"
 
     steps:
       - name: Check out repository
@@ -34,10 +53,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Redundant with the postinstall script, but kept explicit so the
-      # workflow still works if installs ever run with --ignore-scripts.
       - name: Generate Prisma client
         run: npx prisma generate
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Apply migrations
+        run: npx prisma migrate deploy
 
       - name: Lint
         run: npm run lint
@@ -50,3 +73,18 @@ jobs:
 
       - name: Build
         run: npm run build
+
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci --ignore-scripts
+
+      - run: npm audit --audit-level=moderate
